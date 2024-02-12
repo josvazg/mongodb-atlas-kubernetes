@@ -457,3 +457,15 @@ test-metrics:
 
 .PHONY: test-tools ## Test all tools
 test-tools: test-clean test-makejwt test-metrics
+
+.PHONY: goreleaser
+goreleaser:
+	@which goreleaser >/dev/null 2>&1 || go install github.com/goreleaser/goreleaser@latest
+
+.PHONY: goreleaser-builder
+goreleaser-builder:
+	docker buildx create --name goreleaser-builder || echo "goreleaser-builder already present"
+
+.PHONY: test-goreleaser
+test-goreleaser: goreleaser-builder goreleaser ## Test a dry-run goreleaser release
+	VERSION=$(VERSION) goreleaser release --clean --verbose
