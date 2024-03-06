@@ -26,8 +26,12 @@ jobs:
     env:
       BRANCH: ${{ inputs.branch || github.ref_name  }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      PR_NUMBER: ${{ inputs.pr-number }}
+      PR_NUMBER: ${{ inputs.pr-number || github.event.number }}
     steps:
+      - name: debug
+        run: |
+          echo BRANCH=${{ env.BRANCH  }}
+          echo PR_NUMBER=${{ env.PR_NUMBER }}
       - uses: actions/checkout@v4
         with:
           ref: ${{ env.BRANCH }}
@@ -54,12 +58,7 @@ jobs:
             echo 'Clean nothing to do'
           fi
 
-      - name: Label given PR #${{ env.PR_NUMBER }}
+      - name: Label PR #${{ env.PR_NUMBER }}
         uses: actions/labeler@v5
-        if: ${{ env.PR_NUMBER != '' }}
         with:
           pr-number: ${{ env.PR_NUMBER }}
-
-      - name: Label current PR
-        uses: actions/labeler@v5
-        if: ${{ env.PR_NUMBER == '' }}
