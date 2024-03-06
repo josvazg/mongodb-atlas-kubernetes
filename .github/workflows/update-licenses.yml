@@ -54,10 +54,12 @@ jobs:
             echo 'Clean nothing to do'
           fi
 
-      - uses: actions/labeler@v5
+      - name: Label given PR #${{ env.PR_NUMBER }}
+        uses: actions/labeler@v5
         if: ${{ env.PR_NUMBER != '' }}
         with:
           pr-number: ${{ env.PR_NUMBER }}
 
-      - uses: actions/labeler@v5
+      - name: Label current PR
+        uses: actions/labeler@v5
         if: ${{ env.PR_NUMBER == '' }}
