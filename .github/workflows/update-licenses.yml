@@ -55,5 +55,9 @@ jobs:
           fi
 
       - uses: actions/labeler@v5
+        if: ${{ env.PR_NUMBER != '' }}
         with:
           pr-number: ${{ env.PR_NUMBER }}
+
+      - uses: actions/labeler@v5
+        if: ${{ env.PR_NUMBER == '' }}
