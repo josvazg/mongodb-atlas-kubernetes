@@ -8,6 +8,9 @@ on:
       pr-number:
         description: "PR number to apply the label to"
         required: true
+  pull_request:
+    branches:
+      - dependabot/go_modules/**
   pull_request_target:
     branches:
       - dependabot/go_modules/**
