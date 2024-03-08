@@ -31,8 +31,9 @@ jobs:
       - name: debug
         run: |
           echo BRANCH=${{ env.BRANCH  }}
-          echo PR_NUMBER=${{ env.PR_NUMBER }}
-          echo GITHUB_EVENT_PATH=$GITHUB_EVENT_PATH
+          echo PR_NUMBER=${{ env.PR_NUMBER }}ç
+          echo "event info"
+          cat $GITHUB_EVENT_PATH
       - uses: actions/checkout@v4
         with:
           ref: ${{ env.BRANCH }}
