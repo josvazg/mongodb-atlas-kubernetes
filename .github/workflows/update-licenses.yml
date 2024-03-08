@@ -8,9 +8,6 @@ on:
       pr-number:
         description: "PR number to apply the label to"
         required: true
-  push:
-    branches:
-      - dependabot/go_modules/**
   pull_request:
     branches:
       - dependabot/go_modules/**
@@ -31,7 +28,7 @@ jobs:
       - name: debug
         run: |
           echo BRANCH=${{ env.BRANCH  }}
-          echo PR_NUMBER=${{ env.PR_NUMBER }}ç
+          echo PR_NUMBER=${{ env.PR_NUMBER }}
           echo "event info"
           cat $GITHUB_EVENT_PATH
       - uses: actions/checkout@v4
