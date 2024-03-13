@@ -25,9 +25,16 @@ jobs:
             nodes: 1
 
     steps:
+      - name: Print refs
+        run: |
+          echo ${{github.head_ref}}
+          echo ${{github.ref}}
+
       - if: ${{ inputs.forked == false }}
         name: Check out code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref }}
 
       - if: ${{ inputs.forked == true }}
         name: Check out code
