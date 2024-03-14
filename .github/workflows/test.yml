@@ -12,9 +12,6 @@ on:
       - '**'
     paths-ignore:
       - 'docs/**'
-  pull_request_target:
-    paths-ignore:
-      - 'docs/**'
   merge_group:
   workflow_dispatch:
 
