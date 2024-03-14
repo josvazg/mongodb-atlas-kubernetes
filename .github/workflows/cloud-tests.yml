@@ -41,7 +41,7 @@ jobs:
           comment-id: ${{ steps.find-bot-comment.outputs.comment-id }}
           body: https://app.codecov.io/github/mongodb/mongodb-atlas-kubernetes/commit/${{ github.event.pull_request.head.sha }}
       - name: comment PR
-        if: github.event_name == 'pull_request' && steps.find-bot-comment.outputs.comment-id == ''
+        if: github.event_name == 'pull_request' && steps.find-bot-comment.outputs.comment-id == '' && github.repository_owner	== 'mongodb'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
