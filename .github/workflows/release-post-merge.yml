@@ -8,9 +8,6 @@ on:
   pull_request:
     types:
       - closed
-    branches:
-      - release/**
-      - pre-release/**
   workflow_dispatch:
     inputs:
       version:
@@ -89,7 +86,7 @@ jobs:
               CERTIFY=false
               RELEASE_TO_GITHUB=true
             else
-              echo "Release branch must be `release/...' or 'pre-release/...'' but got $release-type"
+              echo "Release branch must be `release/...' or 'pre-release/...' but got $release-type"
               exit 1
             fi
           fi
