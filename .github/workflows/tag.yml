@@ -33,4 +33,4 @@ jobs:
   release-post-merge:
     needs:
     - tag-release
-    uses: ./.github/workflows/release-post-merge.yaml
+    uses: ./.github/workflows/release-post-merge.yml
