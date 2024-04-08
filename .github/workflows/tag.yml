@@ -13,6 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       BRANCH: ${{ github.head_ref }}
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -29,8 +31,11 @@ jobs:
           tag="v${version}"
           git tag "${tag}"
           git push origin "${tag}"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
 
   release-post-merge:
     needs:
     - tag-release
     uses: ./.github/workflows/release-post-merge.yml
+    with:
+      tag: ${{ needs.tag-release.outputs.tag }}
