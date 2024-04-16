@@ -61,10 +61,10 @@ jobs:
       RELEASE_HELM: ${{ github.event.inputs.release_helm || 'true' }}
       CERTIFY: ${{ github.event.inputs.certify || 'true' }}
       RELEASE_TO_GITHUB: ${{ github.event.inputs.release_to_github || 'true' }}
-      INPUT_TAG: ${{ github.event.inputs.tag }}
+      INPUT_TAG: ${{ inputs.tag }}
       HEAD_REF: ${{ github.head_ref }}
       REF_NAME: ${{ github.ref_name }}
-      TAG: ${{ github.event.inputs.tag || github.head_ref || github.ref_name }}
+      TAG: ${{ inputs.tag || github.head_ref || github.ref_name }}
     steps:
       - name: Free disk space
         run: | 
