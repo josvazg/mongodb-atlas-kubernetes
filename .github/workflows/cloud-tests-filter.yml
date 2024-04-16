@@ -48,6 +48,7 @@ jobs:
             DRAFT: ${{ github.event.pull_request.draft }}
             CODE_CHANGED: ${{ steps.paths-filter.outputs.production-code-changed }}
             GH_REF: ${{ github.ref }}
+            GH_HEAD_REF: ${{ github.head_ref }}
             PR_HEAD_REPONAME: ${{ github.event.pull_request.head.repo.full_name }}
             REPONAME: ${{ github.repository }}
             ACTOR: ${{ github.actor }}
@@ -58,7 +59,7 @@ jobs:
             if [ "${EVENT}" == "schedule" ];then
               RUN_CLOUD_TESTS='true'
             # Release branches always run all tests
-            elif [[ "${GH_REF}" == release/* ]];then
+            elif [[ "${GH_HEAD_REF}" == release/* ]];then
               RUN_CLOUD_TESTS='true'
             # push events run all tests when code was changed
             elif [ "${EVENT}" == "push" ] && [ "${CODE_CHANGED}" == "true" ];then
