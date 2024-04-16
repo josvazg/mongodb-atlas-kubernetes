@@ -10,6 +10,25 @@ on:
   workflow_dispatch:
 
 jobs:
+  compute:
+    environment: test
+    name: "Compute test matrix"
+    runs-on: ubuntu-latest
+    env:
+      NIGHTLY_TEST_MATRIX: ${{ vars.KUBERNETES_NIGHTLY_TEST_MATRIX }}
+      PR_TEST_MATRIX: ${{ vars.KUBERNETES_PR_TEST_MATRIX }}
+      GH_HEAD_REF: ${{ github.head_ref }}
+    outputs:
+      test_matrix: ${{ steps.test.outputs.matrix }}
+    steps:
+      - name: test
+        run: |
+          matrix="${PR_TEST_MATRIX}"
+          if [ "${GH_HEAD_REF}" == "main" ];then
+            matrix="${NIGHTLY_TEST_MATRIX}"
+          fi
+          echo "matrix=${matrix}" >> "${GITHUB_OUTPUT}"
+          cat "${GITHUB_OUTPUT}"
   prepare-e2e:
     name: Prepare E2E configuration and image
     runs-on: ubuntu-latest
@@ -118,7 +137,7 @@ jobs:
           forked: ${{ inputs.forked }}
   e2e:
     name: E2E tests
-    needs: [prepare-e2e, prepare-e2e-bundle]
+    needs: [compute, prepare-e2e, prepare-e2e-bundle]
     runs-on: ubuntu-latest
     env:
       GHCR_REPO: ghcr.io/mongodb/mongodb-atlas-kubernetes-operator-prerelease
@@ -126,8 +145,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # k8s: ["1.17-kind", "1.19-kind", "1.17-opeshift"] # <supported platform version>-<platform>
-        k8s: [ "v1.21.1-kind" ] # <K8sGitVersion>-<Platform>
+        k8s: ${{ needs.compute.outputs.test_matrix }}
         test:
           [
             "alert-config",
