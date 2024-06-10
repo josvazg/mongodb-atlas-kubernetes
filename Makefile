@@ -467,7 +467,7 @@ sign: ## Sign an AKO multi-architecture image
 	IMG=$(IMG) SIGNATURE_REPO=$(SIGNATURE_REPO) ./scripts/sign-multiarch.sh
 
 cosign:
-	@which cosign || go install github.com/sigstore/cosign/v2/cmd/cosign@latest
+	which cosign || go install github.com/sigstore/cosign/v2/cmd/cosign@latest
 
 ./ako.pem:
 	curl $(AKO_SIGN_PUBKEY) > $@
@@ -493,8 +493,8 @@ docker-sbom:
 	echo "You might need to install the SBOM plugin for docker, check out docs/dev/release.md#tools"
 
 .PHONY: generate-sboms
-generate-sboms: cosign docker-sbom ## Generate a released version SBOMs
-	@mkdir -p docs/releases/v$(VERSION) && \
+generate-sboms: cosign ./ako.pem docker-sbom ## Generate a released version SBOMs
+	mkdir -p docs/releases/v$(VERSION) && \
 	./scripts/generate_upload_sbom.sh -i $(RELEASED_OPERATOR_IMAGE):$(VERSION) -o docs/releases/v$(VERSION) && \
 	ls -l docs/releases/v$(VERSION)
 
