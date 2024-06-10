@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -Eeoxu pipefail
+set -Eeou pipefail
 
 platforms=("linux/arm64" "linux/amd64")
 image_pull_spec=""

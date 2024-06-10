@@ -52,10 +52,8 @@ jobs:
           BRANCH: version-${{ steps.version.outputs.version }}-sboms
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "forcing cosign to install..."
-          make cosign
-          echo "forcing ako pem..."
-          make ./ako.pem
+          echo "show docker sbom help"
+          docker sbom --help
           echo "generating sboms..."
           make generate-sboms VERSION=${{ steps.version.outputs.version }}
           git checkout -b $BRANCH
