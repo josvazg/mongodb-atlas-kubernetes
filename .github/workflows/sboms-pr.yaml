@@ -63,7 +63,7 @@ jobs:
           BRANCH: version-${{ steps.version.outputs.version }}-sboms
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          ./scripts/install-docker-sbom-plugin.sh
+          OS=linux ARCH=amd64 DOCKER_SBOM_PLUGIN_VERSION=0.6.1 ./scripts/get-docker-sbom-plugin.sh
           make generate-sboms VERSION=${{ steps.version.outputs.version }}
           git checkout -b $BRANCH
           git add .
