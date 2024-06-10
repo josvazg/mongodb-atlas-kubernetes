@@ -47,7 +47,7 @@ function generate_sbom() {
   local digest=$3
   local file_name=$4
   set +Ee
-  docker sbom -o "$file_name" --format "cyclonedx-json" "$image_pull_spec@$digest"
+  docker sbom --platform "$platform" -o "$file_name" --format "cyclonedx-json" "$image_pull_spec@$digest"
   docker_sbom_return_code=$?
   set -Ee
   if ((docker_sbom_return_code != 0)); then

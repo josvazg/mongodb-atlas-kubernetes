@@ -15,6 +15,7 @@ on:
         description: "Name of existing tag to release (format should be 'v*')"
         required: true
       checkout-tag:
+        description: "Checkout the given tag or work on main otherwise"
         type: boolean
         required: true
         default: true
@@ -25,6 +26,7 @@ on:
         description: "Name of existing tag (or branch) to release (format should be 'v*')"
         required: true
       checkout-tag:
+        description: "Checkout the given tag or work on main otherwise"
         type: boolean
         required: true
         default: true
@@ -61,6 +63,7 @@ jobs:
           BRANCH: version-${{ steps.version.outputs.version }}-sboms
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          ./scripts/install-docker-sbom-plugin.sh
           make generate-sboms VERSION=${{ steps.version.outputs.version }}
           git checkout -b $BRANCH
           git add .
