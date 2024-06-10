@@ -38,7 +38,6 @@ jobs:
     env:
       TAG: ${{ inputs.tag || github.head_ref || github.ref_name }}
       CHECKOUT_TAG: ${{ inputs.checkout-tag && inputs.tag || 'main' }}
-      GITHUB_REPO: mongodb/mongodb-atlas-kubernetes
     steps:
       - name: Compute version
         id: version
@@ -61,7 +60,7 @@ jobs:
 
       - name: Configure Git
         run: |
-          git remote set-url origin https://${{ secrets.GITHUB_TOKEN }}@github.com/${{ env.GITHUB_REPO }}.git
+          git remote set-url origin https://${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
 
