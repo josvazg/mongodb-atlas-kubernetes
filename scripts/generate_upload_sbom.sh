@@ -67,7 +67,7 @@ function generate_sbom() {
   return 0
 }
 
-while getopts ':p:i:b:o:h:s:' opt; do
+while getopts ':p:i:b:o:h' opt; do
   case $opt in
     i) image_pull_spec=$OPTARG ;;
     b) bucket_name=$OPTARG ;;
