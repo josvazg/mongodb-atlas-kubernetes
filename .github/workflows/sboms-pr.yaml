@@ -44,7 +44,6 @@ jobs:
           echo "version=${version}" >> "$GITHUB_OUTPUT"
 
       - name: Check out code
-        if: inputs.checkout-tag
         uses: actions/checkout@v4
         with:
           submodules: true
