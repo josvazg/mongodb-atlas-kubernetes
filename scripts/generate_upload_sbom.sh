@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -Eeou pipefail
+set -Eeoxu pipefail
 
 platforms=("linux/arm64" "linux/amd64")
 image_pull_spec=""
@@ -47,6 +47,7 @@ function generate_sbom() {
   local digest=$3
   local file_name=$4
   set +Ee
+  set -x
   docker sbom --platform "$platform" -o "$file_name" --format "cyclonedx-json" "$image_pull_spec@$digest"
   docker_sbom_return_code=$?
   set -Ee
