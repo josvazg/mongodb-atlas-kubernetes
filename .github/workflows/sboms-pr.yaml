@@ -52,10 +52,7 @@ jobs:
           BRANCH: version-${{ steps.version.outputs.version }}-sboms
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "show docker sbom help"
-          docker sbom --help
-          echo "generating sboms..."
-          make -d generate-sboms VERSION=${{ steps.version.outputs.version }}
+          make cosign ./ako.pem generate-sboms VERSION=${{ steps.version.outputs.version }}
           git checkout -b $BRANCH
           git add .
           git commit -m "Add SBOMs for version ${{ steps.version.outputs.version }}"
