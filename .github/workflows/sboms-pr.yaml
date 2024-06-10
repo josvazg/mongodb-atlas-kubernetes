@@ -35,6 +35,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       TAG: ${{ inputs.tag || github.head_ref || github.ref_name }}
+      CHECKOUT_TAG: ${{ inputs.checkout-tag && inputs.tag || 'main' }}
     steps:
       - name: Compute version
         id: version
@@ -48,7 +49,7 @@ jobs:
         with:
           submodules: true
           fetch-depth: 0
-          ref: ${{ env.TAG }}
+          ref: ${{ env.CHECKOUT_TAG }}
 
       - name: Set up Go
         uses: actions/setup-go@v5
