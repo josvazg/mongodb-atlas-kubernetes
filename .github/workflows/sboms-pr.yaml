@@ -23,7 +23,7 @@ on:
 jobs:
   sboms:
     environment: release
-    name: Create Release
+    name: Create SBOMs PR
     runs-on: ubuntu-latest
     env:
       TAG: ${{ inputs.tag || github.head_ref || github.ref_name }}
