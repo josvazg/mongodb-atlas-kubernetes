@@ -493,7 +493,7 @@ docker-sbom:
 	echo "You might need to install the SBOM plugin for docker, check out docs/dev/release.md#tools"
 
 .PHONY: generate-sboms
-generate-sboms: docker-sbom ## Generate a released version SBOMs
+generate-sboms: cosign docker-sbom ## Generate a released version SBOMs
 	@mkdir -p docs/releases/v$(VERSION) && \
 	./scripts/generate_upload_sbom.sh -i $(RELEASED_OPERATOR_IMAGE):$(VERSION) -o docs/releases/v$(VERSION) && \
 	ls -l docs/releases/v$(VERSION)
