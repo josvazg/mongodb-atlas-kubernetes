@@ -1,0 +1,61 @@
+# GitHub workflow for creating release.
+# Trigger release branch should be merge into main
+# TODO add e2e/smoke test for autogen configuration
+
+name: Create SBOMs PR
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_call:
+    inputs:
+      tag:
+        type: string
+        description: "Name of existing tag to release (format should be 'v*')"
+        required: true
+  workflow_dispatch:
+    inputs:
+      tag:
+        type: string
+        description: "Name of existing tag (or branch) to release (format should be 'v*')"
+        required: true
+jobs:
+  sboms:
+    environment: release
+    name: Create Release
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ inputs.tag || github.head_ref || github.ref_name }}
+    steps:
+      - name: Compute version
+        id: version
+        run: |
+          version=$(echo "${TAG}" |awk -F'^v' '{print $2}')
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+          fetch-depth: 0
+          ref: ${{ env.TAG }}
+
+      - name: Create SBOMs branch
+        env:
+          BRANCH: version-${{ steps.version.outputs.version }}-sboms
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          make generate-sboms VERSION=${{ steps.version.outputs.version }}
+          git checkout -b $BRANCH
+          git add .
+          git commit -m "Add SBOMs for version ${{ steps.version.outputs.version }}"
+          git push --set-upstream origin $BRANCH
+
+      - name: Create SBOMs PR
+        uses: ./.github/actions/create-pr
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REVIEWERS: ${{ env.REVIEWERS }}
+        with:
+          REVIEWERS: ${{ env.REVIEWERS }}
