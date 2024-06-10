@@ -41,11 +41,22 @@ jobs:
           fetch-depth: 0
           ref: ${{ env.TAG }}
 
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: "${{ github.workspace }}/tools/makejwt/go.mod"
+          cache: false
+
       - name: Create SBOMs branch
         env:
           BRANCH: version-${{ steps.version.outputs.version }}-sboms
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          echo "forcing cosign to install..."
+          make cosign
+          echo "forcing ako pem..."
+          make ./ako.pem
+          echo "generating sboms..."
           make generate-sboms VERSION=${{ steps.version.outputs.version }}
           git checkout -b $BRANCH
           git add .
