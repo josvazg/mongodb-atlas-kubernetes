@@ -72,7 +72,7 @@ jobs:
           OS=linux ARCH=amd64 DOCKER_SBOM_PLUGIN_VERSION=0.6.1 ./scripts/get-docker-sbom-plugin.sh
           make generate-sboms VERSION=${{ steps.version.outputs.version }}
           git checkout -b $BRANCH
-          git add .
+          git add docs/releases
           git commit -m "Add SBOMs for version ${{ steps.version.outputs.version }}"
           git push --set-upstream origin $BRANCH
 
@@ -81,5 +81,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REVIEWERS: ${{ env.REVIEWERS }}
+          VERSION: ${{ steps.version.outputs.version }}
         with:
           REVIEWERS: ${{ env.REVIEWERS }}
+          TITLE_PREFIX: "SBOMs for version "
