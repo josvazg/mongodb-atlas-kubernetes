@@ -28,6 +28,7 @@ import (
 	"github.com/mongodb/mongodb-atlas-kubernetes/v2/pkg/controller/atlasdatafederation"
 	"github.com/mongodb/mongodb-atlas-kubernetes/v2/pkg/controller/atlasdeployment"
 	"github.com/mongodb/mongodb-atlas-kubernetes/v2/pkg/controller/atlasfederatedauth"
+	"github.com/mongodb/mongodb-atlas-kubernetes/v2/pkg/controller/atlasprivateendpoint"
 	"github.com/mongodb/mongodb-atlas-kubernetes/v2/pkg/controller/atlasproject"
 	"github.com/mongodb/mongodb-atlas-kubernetes/v2/pkg/controller/atlassearchindexconfig"
 	"github.com/mongodb/mongodb-atlas-kubernetes/v2/pkg/controller/atlasstream"
@@ -304,6 +305,16 @@ func (b *Builder) Build(ctx context.Context) (manager.Manager, error) {
 	)
 	if err = bcpReconciler.SetupWithManager(mgr, b.skipNameValidation); err != nil {
 		return nil, fmt.Errorf("unable to create controller AtlasBackupCompliancePolicy: %w", err)
+	}
+
+	peReconciler := atlasprivateendpoint.NewAtlasPrivateEndpointReconciler(
+		mgr,
+		b.logger,
+		b.predicates,
+		b.deletionProtection,
+	)
+	if err = peReconciler.SetupWithManager(mgr, b.skipNameValidation); err != nil {
+		return nil, fmt.Errorf("unable to create controller AtlasPrivateEndpointReconciler: %w", err)
 	}
 
 	return mgr, nil

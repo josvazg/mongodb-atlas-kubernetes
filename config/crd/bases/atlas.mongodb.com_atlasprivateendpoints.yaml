@@ -1,0 +1,180 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.16.1
+  name: atlasprivateendpoints.atlas.mongodb.com
+spec:
+  group: atlas.mongodb.com
+  names:
+    categories:
+    - atlas
+    kind: AtlasPrivateEndpoint
+    listKind: AtlasPrivateEndpointList
+    plural: atlasprivateendpoints
+    shortNames:
+    - ape
+    singular: atlasprivateendpoint
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.name
+      name: Name
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="Ready")].status
+      name: Ready
+      type: string
+    - jsonPath: .status.id
+      name: Atlas ID
+      type: string
+    name: v1
+    schema:
+      openAPIV3Schema:
+        description: AtlasPrivateEndpoint is the Schema for the Atlas Private Endpoint
+          API
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: AtlasPrivateEndpointSpec contains the desired to configuration
+              for an Atlas Private Endpoint
+            properties:
+              connectionSecret:
+                description: LocalObjectReference is a reference to an object in the
+                  same namespace as the referent
+                properties:
+                  name:
+                    description: |-
+                      Name of the resource being referred to
+                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                    type: string
+                required:
+                - name
+                type: object
+              endpointGroupName:
+                description: Unique identifier of the endpoint group. The endpoint
+                  group encompasses all of the endpoints that you created in Google
+                  Cloud.
+                type: string
+              endpoints:
+                description: Collection of individual private endpoints that comprise
+                  your endpoint group.
+                items:
+                  properties:
+                    endpointName:
+                      description: Forwarding rule that corresponds to the endpoint
+                        you created in Google Cloud.
+                      type: string
+                    ipAddress:
+                      description: Private IP address of the endpoint you created
+                        in Google Cloud.
+                      type: string
+                  type: object
+                type: array
+              gcpProjectId:
+                description: Unique identifier of the Google Cloud project in which
+                  you created your endpoints.
+                type: string
+              id:
+                description: Unique identifier of the private endpoint you created
+                  in your AWS VPC or Azure Vnet.
+                type: string
+              ip:
+                description: Private IP address of the private endpoint network interface
+                  you created in your Azure VNet.
+                type: string
+              projectRef:
+                description: Project is a reference to AtlasProject resource the user
+                  belongs to
+                properties:
+                  name:
+                    description: Name is the name of the Kubernetes Resource
+                    type: string
+                  namespace:
+                    description: Namespace is the namespace of the Kubernetes Resource
+                    type: string
+                required:
+                - name
+                type: object
+              provider:
+                description: Cloud provider for which you want to retrieve a private
+                  endpoint service. Atlas accepts AWS or AZURE.
+                enum:
+                - AWS
+                - GCP
+                - AZURE
+                - TENANT
+                type: string
+              region:
+                description: Cloud provider region for which you want to create the
+                  private endpoint service.
+                type: string
+            required:
+            - projectRef
+            - provider
+            - region
+            type: object
+          status:
+            description: AtlasPrivateEndpointStatus defines the observed state of
+              AtlasPrivateEndpoint
+            properties:
+              conditions:
+                description: Conditions is the list of statuses showing the current
+                  state of the Atlas Custom Resource
+                items:
+                  description: Condition describes the state of an Atlas Custom Resource
+                    at a certain point.
+                  properties:
+                    lastTransitionTime:
+                      description: Last time the condition transitioned from one status
+                        to another.
+                      format: date-time
+                      type: string
+                    message:
+                      description: A human readable message indicating details about
+                        the transition.
+                      type: string
+                    reason:
+                      description: The reason for the condition's last transition.
+                      type: string
+                    status:
+                      description: Status of the condition, one of True, False, Unknown.
+                      type: string
+                    type:
+                      description: Type of Atlas Custom Resource condition.
+                      type: string
+                  required:
+                  - status
+                  - type
+                  type: object
+                type: array
+              observedGeneration:
+                description: |-
+                  ObservedGeneration indicates the generation of the resource specification that the Atlas Operator is aware of.
+                  The Atlas Operator updates this field to the 'metadata.generation' as soon as it starts reconciliation of the resource.
+                format: int64
+                type: integer
+            required:
+            - conditions
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

@@ -515,13 +515,21 @@ set-namespace:
 
 .PHONY: install-credentials
 install-credentials: set-namespace ## Install the Atlas credentials for the Operator
-	kubectl create secret generic $(ATLAS_KEY_SECRET_NAME) \
+	@kubectl create secret generic $(ATLAS_KEY_SECRET_NAME) \
 	--from-literal="orgId=$(MCLI_ORG_ID)" \
 	--from-literal="publicApiKey=$(MCLI_PUBLIC_API_KEY)" \
 	--from-literal="privateApiKey=$(MCLI_PRIVATE_API_KEY)" \
-	-n "$(OPERATOR_NAMESPACE)" || echo "Secret already in place"
+	-n "$(OPERATOR_NAMESPACE)" \
+	--dry-run=client -o yaml | kubectl apply -f -
 	kubectl label secret -n "${OPERATOR_NAMESPACE}" \
 	$(ATLAS_KEY_SECRET_NAME) atlas.mongodb.com/type=credentials
+
+kubectl create secret generic production-tls \
+--save-config \
+--dry-run=client \
+--from-file=./tls.key --from-file=./tls.crt \
+-o yaml | \
+kubectl apply -f -
 
 .PHONY: prepare-run
 prepare-run: generate vet manifests manager run-kind install-crds install-credentials

@@ -133,7 +133,7 @@ func defaultTestUser() *akov2.AtlasDatabaseUser {
 	}
 }
 
-func TestFindAtlasDatabaseUserForSecret(t *testing.T) {
+func TestFindAtlasDatabaseUseForSecret(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
 		obj      client.Object
