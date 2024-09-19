@@ -2,20 +2,33 @@ package akogen
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/dave/jennifer/jen"
 )
 
 type TranslationLayer struct {
-	PackageName  string
-	CallWrappers []WrappedCall
+	PackageName string
+	Type        Type
+	Translation Translation
+	WrappedType *WrappedType
 }
 
-type WrappedCall struct {
+type Translation struct {
+	Internal     NamedType
+	External     NamedType
+	ExternalName string
+}
+
+type WrappedType struct {
+	NamedType
+	Lib            Import
+	WrapperMethods []WrapperMethod
+}
+
+type WrapperMethod struct {
 	MethodSignature
-	WrappedLib  Import
-	WrappedType NamedType
 	WrappedCall CallSignature
 }
 
@@ -57,41 +70,31 @@ func GenerateTranslationLayer(tl *TranslationLayer) (string, error) {
 		return "", ErrEmptySpec
 	}
 	f := jen.NewFile(tl.PackageName)
-	defined := map[Type]struct{}{}
-	for _, wm := range tl.CallWrappers {
-		implType := wm.MethodSignature.ImplType.Type
-		if !isDefined(defined, implType) {
-			f.ImportName(wm.WrappedLib.Path, wm.WrappedLib.Alias)
-			f.Type().Id(dereference(implType)).Struct(
-				jen.Id(wm.WrappedType.Name).Qual(wm.WrappedLib.Path, string(wm.WrappedType.Type)),
-			)
-			define(defined, implType)
-		}
-		addMethodSignature(
-			f,
-			wm.MethodSignature,
-			wrapAPICall(wm.ImplType, wm.WrappedType.Name, wm.WrappedCall),
-			returnOnError(wm.Returns),
-			jen.Return(
-				jen.Id("fromAtlas").Params(jen.Id(wm.Returns[0].Name)),
-				jen.Nil(),
-			),
+	if tl.WrappedType != nil {
+		f.ImportName(tl.WrappedType.Lib.Path, tl.WrappedType.Lib.Alias)
+		f.Type().Id(dereference(tl.Type)).Struct(
+			jen.Id(tl.WrappedType.Name).Qual(tl.WrappedType.Lib.Path, string(tl.WrappedType.Type)),
 		)
+		addedFunc := false
+		for _, wm := range tl.WrappedType.WrapperMethods {
+			if addedFunc {
+				f.Empty()
+			}
+			addMethodSignature(
+				f,
+				&wm.MethodSignature,
+				wrapAPICall(&wm, tl.WrappedType.Name, &tl.Translation),
+				returnOnError(wm.Returns),
+				returns(translateArgs(&tl.Translation, wm.WrappedCall.Returns)),
+			)
+			addedFunc = true
+		}
 	}
 	return f.GoString(), nil
 }
 
 func isEmpty(tl *TranslationLayer) bool {
-	return tl.PackageName == "" && len(tl.CallWrappers) == 0
-}
-
-func isDefined(defined map[Type]struct{}, t Type) bool {
-	_, ok := defined[t]
-	return ok
-}
-
-func define(defined map[Type]struct{}, t Type) {
-	defined[t] = struct{}{}
+	return tl.PackageName == "" && tl.WrappedType == nil
 }
 
 func dereference(t Type) string {
@@ -102,16 +105,32 @@ func dereference(t Type) string {
 	return str
 }
 
-func addMethodSignature(f *jen.File, m MethodSignature, blockStatements ...jen.Code) *jen.Statement {
+func addMethodSignature(f *jen.File, m *MethodSignature, blockStatements ...jen.Code) *jen.Statement {
 	return f.Func().Params(
 		methodReceiver(m.ImplType)).Id(m.Name).
 		Params(argsSignature(m.Args)...).
 		Params(returnsSignature(m.Returns)...).Block(blockStatements...)
 }
 
-func wrapAPICall(this NamedType, fieldName string, wrappedCall CallSignature) *jen.Statement {
-	return assignCallReturns(wrappedCall.Returns).Id(this.Name).Dot(fieldName).Dot(wrappedCall.Name).
-		Call(callArgs(wrappedCall.Args)...)
+func wrapAPICall(wm *WrapperMethod, fieldName string, translation *Translation) *jen.Statement {
+	return assignCallReturns(wm.WrappedCall.Returns).Id(wm.ImplType.Name).Dot(fieldName).Dot(wm.WrappedCall.Name).
+		Call(callArgs(translateArgs(translation, wm.Args))...)
+}
+
+func translateArgs(translation *Translation, vars []NamedType) []NamedType {
+	outVars := make([]NamedType, 0, len(vars))
+	for _, v := range vars {
+		switch v.Type {
+		case translation.External.Type:
+			v.Name = fmt.Sprintf("from%s(%s)", translation.ExternalName, v.Name)
+		case translation.Internal.Type:
+			v.Name = fmt.Sprintf("to%s(%s)", translation.ExternalName, v.Name)
+		case "error":
+			v.Name = "nil"
+		}
+		outVars = append(outVars, v)
+	}
+	return outVars
 }
 
 func methodReceiver(nt NamedType) jen.Code {
@@ -182,6 +201,17 @@ func returnError(returns []NamedType) *jen.Statement {
 		list = append(list, item)
 	}
 	return jen.List(list...)
+}
+
+func returns(returns []NamedType) *jen.Statement {
+	if len(returns) < 1 {
+		panic("expected one or more returns")
+	}
+	list := make([]jen.Code, 0, len(returns))
+	for _, ret := range returns {
+		list = append(list, jen.Id(ret.Name))
+	}
+	return jen.Return(jen.List(list...))
 }
 
 func zeroValueOf(t Type) *jen.Statement {
