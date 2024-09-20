@@ -66,15 +66,16 @@ func TestGenAPIWrapper(t *testing.T) {
 			title: "specifying a wrapper generates the expected wrapper code",
 			spec: &akogen.TranslationLayer{
 				PackageName: packageName,
-				Type:        "wrapper",
-				Translation: akogen.Translation{
-					Internal:     akogen.NamedType{Name: "res", Type: "*Resource"},
-					External:     akogen.NamedType{Name: "apiRes", Type: "*api.Resource"},
-					ExternalName: "Atlas",
-				},
 				WrappedType: &akogen.WrappedType{
-					Lib:       akogen.Import{Alias: "lib", Path: "some/path/to/lib"},
-					NamedType: akogen.NamedType{Name: "api", Type: "API"},
+					Translation: akogen.Translation{
+						Lib:          akogen.Import{Alias: "lib", Path: "some/path/to/lib"},
+						ExternalName: "Atlas",
+						External:     akogen.NamedType{Name: "apiRes", Type: "*api.Resource"},
+						ExternalAPI:  akogen.NamedType{Name: "api", Type: "API"},
+						Internal:     akogen.NamedType{Name: "res", Type: "*Resource"},
+						Wrapper:      akogen.NamedType{Name: "w", Type: "wrapper"},
+					},
+					//NamedType: akogen.NamedType{Name: "api", Type: "API"},
 					WrapperMethods: []akogen.WrapperMethod{
 						{
 							MethodSignature: akogen.MethodSignature{
