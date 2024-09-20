@@ -9,21 +9,21 @@ import (
 
 type TranslationLayer struct {
 	PackageName string
-	Type        Type
-	Translation Translation
 	WrappedType *WrappedType
 }
 
-type Translation struct {
-	Internal     NamedType
-	External     NamedType
-	ExternalName string
+type WrappedType struct {
+	Translation
+	WrapperMethods []WrapperMethod
 }
 
-type WrappedType struct {
-	NamedType
-	Lib            Import
-	WrapperMethods []WrapperMethod
+type Translation struct {
+	Lib          Import
+	ExternalName string
+	External     NamedType
+	ExternalAPI  NamedType
+	Internal     NamedType
+	Wrapper      NamedType
 }
 
 type WrapperMethod struct {
@@ -49,8 +49,10 @@ func GenerateTranslationLayer(tl *TranslationLayer) (string, error) {
 	f := jen.NewFile(tl.PackageName)
 	if tl.WrappedType != nil {
 		f.ImportName(tl.WrappedType.Lib.Path, tl.WrappedType.Lib.Alias)
-		f.Type().Id(tl.Type.dereference()).Struct(
-			jen.Id(tl.WrappedType.Name).Qual(tl.WrappedType.Lib.Path, string(tl.WrappedType.Type)),
+		f.Type().Id(tl.WrappedType.Wrapper.dereference()).Struct(
+			jen.Id(tl.WrappedType.ExternalAPI.Name).Qual(
+				tl.WrappedType.Lib.Path, string(tl.WrappedType.ExternalAPI.Type),
+			),
 		)
 		addedFunc := false
 		for _, wm := range tl.WrappedType.WrapperMethods {
@@ -60,9 +62,9 @@ func GenerateTranslationLayer(tl *TranslationLayer) (string, error) {
 			addMethodSignature(
 				f,
 				&wm.MethodSignature,
-				wrapAPICall(&wm, tl.WrappedType.Name, &tl.Translation),
+				wrapAPICall(&wm, &tl.WrappedType.Translation),
 				returnOnError(wm.Returns),
-				returns(translateArgs(&tl.Translation, wm.WrappedCall.Returns)),
+				returns(translateArgs(&tl.WrappedType.Translation, wm.WrappedCall.Returns)),
 			)
 			addedFunc = true
 		}
@@ -80,9 +82,9 @@ func addMethodSignature(f *jen.File, m *MethodSignature, blockStatements ...jen.
 		Params(m.Returns.returnsSignature()...).Block(blockStatements...)
 }
 
-func wrapAPICall(wm *WrapperMethod, fieldName string, translation *Translation) *jen.Statement {
+func wrapAPICall(wm *WrapperMethod, translation *Translation) *jen.Statement {
 	return wm.WrappedCall.Returns.assignCallReturns().
-	   Id(wm.ImplType.Name).Dot(fieldName).Dot(wm.WrappedCall.Name).
+		Id(wm.ImplType.Name).Dot(translation.ExternalAPI.Name).Dot(wm.WrappedCall.Name).
 		Call(translateArgs(translation, wm.Args).callArgs()...)
 }
 
@@ -102,7 +104,7 @@ func translateArgs(translation *Translation, vars []NamedType) NamedTypes {
 	return outVars
 }
 
-func  returnOnError(returns NamedTypes) jen.Code {
+func returnOnError(returns NamedTypes) jen.Code {
 	if len(returns) < 1 {
 		panic("expected one or more returns")
 	}
