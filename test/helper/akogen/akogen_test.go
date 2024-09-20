@@ -15,7 +15,10 @@ import (
 const (
 	wrappedCallSample = `package %s
 
-import "some/path/to/lib"
+import (
+	"internal/pointer"
+	"some/path/to/lib"
+)
 
 type wrapper struct {
 	api lib.API
@@ -35,6 +38,24 @@ func (w *wrapper) Create(ctx context.Context, res *Resource) (*Resource, error) 
 		return nil, err
 	}
 	return fromAtlas(res), nil
+}
+
+func toAtlas(res *Resource) *api.Resource {
+	return &api.Resource{
+		Enabled:        pointer.MakePtr(res.Enabled),
+		Id:             ID,
+		SelectedOption: pointer.MakePtr(string(res.SelectedOption)),
+		Status:         pointer.MakePtr(res.Status),
+	}
+}
+
+func fromAtlas(apiRes *api.Resource) *Resource {
+	return &Resource{
+		Enabled:        pointer.GetOrDefault(apiRes.Enabled, false),
+		ID: Id,
+		SelectedOption: OptionType(pointer.GetOrDefault(apiRes.Option,"")),
+		Status:         pointer.GetOrDefault(apiRes.Status, ""),
+	}
 }
 `
 )
@@ -71,10 +92,26 @@ func TestGenAPIWrapper(t *testing.T) {
 					Translation: akogen.Translation{
 						Lib:          akogen.Import{Alias: "lib", Path: "some/path/to/lib"},
 						ExternalName: "Atlas",
-						External:     akogen.Struct{NamedType: akogen.NewNamedType("apiRes", "*api.Resource")},
-						ExternalAPI:  akogen.NewNamedType("api", "API"),
-						Internal:     akogen.Struct{NamedType: akogen.NewNamedType("res", "*Resource")},
-						Wrapper:      akogen.NewNamedType("w", "wrapper"),
+						External: akogen.Struct{
+							NamedType: akogen.NewNamedType("apiRes", "*api.Resource"),
+							Fields: akogen.NamedTypes{
+								akogen.NewNamedType("Id", "string"),
+								akogen.NewNamedType("SelectedOption", "*Option"),
+								akogen.NewNamedType("Enabled", "*bool"),
+								akogen.NewNamedType("Status", "*string"),
+							},
+						},
+						ExternalAPI: akogen.NewNamedType("api", "API"),
+						Internal: akogen.Struct{
+							NamedType: akogen.NewNamedType("res", "*Resource"),
+							Fields: akogen.NamedTypes{
+								akogen.NewNamedType("ID", "string"),
+								akogen.NewNamedType("SelectedOption", "Option"),
+								akogen.NewNamedType("Enabled", "bool"),
+								akogen.NewNamedType("Status", "string"),
+							},
+						},
+						Wrapper: akogen.NewNamedType("w", "wrapper"),
 					},
 					WrapperMethods: []akogen.WrapperMethod{
 						{

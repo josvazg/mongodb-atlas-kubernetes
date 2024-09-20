@@ -3,6 +3,7 @@ package akogen
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/dave/jennifer/jen"
 )
@@ -43,37 +44,87 @@ func GenerateTranslationLayer(tl *TranslationLayer) (string, error) {
 	if tl == nil {
 		return "", ErrNilSpec
 	}
-	if isEmpty(tl) {
+	if tl.isEmpty() {
 		return "", ErrEmptySpec
 	}
 	f := jen.NewFile(tl.PackageName)
 	if tl.WrappedType != nil {
-		f.ImportName(tl.WrappedType.Lib.Path, tl.WrappedType.Lib.Alias)
-		f.Type().Id(tl.WrappedType.Wrapper.dereference()).Struct(
-			jen.Id(tl.WrappedType.ExternalAPI.Name).Qual(
-				tl.WrappedType.Lib.Path, string(tl.WrappedType.ExternalAPI.Type),
-			),
-		)
-		addedFunc := false
+		tl.defineWrapperType(f)
 		for _, wm := range tl.WrappedType.WrapperMethods {
-			if addedFunc {
-				f.Empty()
-			}
-			addMethodSignature(
-				f,
-				&wm.MethodSignature,
-				wrapAPICall(&wm, &tl.WrappedType.Translation),
-				returnOnError(wm.Returns),
-				returns(translateArgs(&tl.WrappedType.Translation, wm.WrappedCall.Returns)),
-			)
-			addedFunc = true
+			tl.implementAPICallWrapping(f, wm)
+			f.Empty()
+		}
+		if err := tl.defineToExternalConversion(f); err != nil {
+			return "", fmt.Errorf("failed to generate conversion to external type: %w", err)
+		}
+		f.Empty()
+		if err := tl.defineFromExternalConversion(f); err != nil {
+			return "", fmt.Errorf("failed to generate conversion from external type: %w", err)
 		}
 	}
 	return f.GoString(), nil
 }
 
-func isEmpty(tl *TranslationLayer) bool {
+func (tl *TranslationLayer) defineWrapperType(f *jen.File) {
+	f.ImportName(tl.WrappedType.Lib.Path, tl.WrappedType.Lib.Alias)
+	f.Type().Id(tl.WrappedType.Wrapper.dereference()).Struct(
+		jen.Id(tl.WrappedType.ExternalAPI.Name).Qual(
+			tl.WrappedType.Lib.Path, string(tl.WrappedType.ExternalAPI.Type),
+		),
+	)
+}
+
+func (tl *TranslationLayer) implementAPICallWrapping(f *jen.File, wm WrapperMethod) {
+	addMethodSignature(
+		f,
+		&wm.MethodSignature,
+		wrapAPICall(&wm, &tl.WrappedType.Translation),
+		returnOnError(wm.Returns),
+		returns(translateArgs(&tl.WrappedType.Translation, wm.WrappedCall.Returns)),
+	)
+}
+
+func (tl *TranslationLayer) defineToExternalConversion(f *jen.File) error {
+	conversion, err := returnConversion(tl.WrappedType.External, tl.WrappedType.Internal)
+	if err != nil {
+		return fmt.Errorf("struct conversion failed: %v", err)
+	}
+	addFunctionSignature(
+		f,
+		&FunctionSignature{
+			Name:    fmt.Sprintf("to%s", tl.WrappedType.ExternalName),
+			Args:    []NamedType{tl.WrappedType.Internal.NamedType},
+			Returns: []NamedType{tl.WrappedType.External.NamedType},
+		},
+		conversion,
+	)
+	return nil
+}
+
+func (tl *TranslationLayer) defineFromExternalConversion(f *jen.File) error {
+	conversion, err := returnConversion(tl.WrappedType.Internal, tl.WrappedType.External)
+	if err != nil {
+		return fmt.Errorf("struct conversion failed: %v", err)
+	}
+	addFunctionSignature(
+		f,
+		&FunctionSignature{
+			Name:    fmt.Sprintf("from%s", tl.WrappedType.ExternalName),
+			Args:    []NamedType{tl.WrappedType.External.NamedType},
+			Returns: []NamedType{tl.WrappedType.Internal.NamedType},
+		},
+		conversion,
+	)
+	return nil
+}
+
+func (tl *TranslationLayer) isEmpty() bool {
 	return tl.PackageName == "" && tl.WrappedType == nil
+}
+
+func addFunctionSignature(f *jen.File, fns *FunctionSignature, blockStatements ...jen.Code) *jen.Statement {
+	return f.Func().Id(fns.Name).Params(fns.Args.argsSignature()...).
+		Params(fns.Returns.returnsSignature()...).Block(blockStatements...)
 }
 
 func addMethodSignature(f *jen.File, m *MethodSignature, blockStatements ...jen.Code) *jen.Statement {
@@ -122,4 +173,47 @@ func returns(returns NamedTypes) *jen.Statement {
 		list = append(list, jen.Id(ret.Name))
 	}
 	return jen.Return(jen.List(list...))
+}
+
+func returnConversion(dst, src Struct) (*jen.Statement, error) {
+	typeConversion, err := convertTypes(dst, src)
+	if err != nil {
+		return nil, err
+	}
+	return jen.Return(typeConversion), nil
+}
+
+func convertTypes(dst, src Struct) (*jen.Statement, error) {
+	fieldConversions, err := convertFields(dst, src)
+	if err != nil {
+		return nil, err
+	}
+	return jen.Op("&").Id(string(dst.Type.dereference())).Values(fieldConversions), nil
+}
+
+func convertFields(dst, src Struct) (jen.Dict, error) {
+	remaining := src.Fields
+	values := jen.Dict{}
+	for _, field := range dst.Fields {
+		var err error
+		var conversion *jen.Statement
+		remaining, conversion, err = computeConversion(remaining, field)
+		if err != nil {
+			return nil, fmt.Errorf("failed to compute conversion: %w", err)
+		}
+		values[jen.Id(field.Name)] = conversion
+	}
+	return values, nil
+}
+
+func computeConversion(current NamedTypes, field NamedType) (NamedTypes, *jen.Statement, error) {
+	prefix := NamedTypes{}
+	for i, srcField := range current {
+		if strings.EqualFold(field.Type.dereference(), srcField.Type.dereference()) {
+			remaining := append(prefix, current[i:]...)
+			return remaining, jen.Id(srcField.Name), nil
+		}
+		prefix = append(prefix, srcField)
+	}
+	return nil, nil, fmt.Errorf("could not find counterpart for %v at %v", field, current)
 }
