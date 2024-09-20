@@ -79,7 +79,7 @@ func TestGenAPIWrapper(t *testing.T) {
 						{
 							MethodSignature: akogen.MethodSignature{
 								ImplType: akogen.NamedType{Name: "w", Type: "*wrapper"},
-								CallSignature: akogen.CallSignature{
+								FunctionSignature: akogen.FunctionSignature{
 									Name: "Get",
 									Args: []akogen.NamedType{
 										{Name: "ctx", Type: "context.Context"},
@@ -91,7 +91,7 @@ func TestGenAPIWrapper(t *testing.T) {
 									},
 								},
 							},
-							WrappedCall: akogen.CallSignature{
+							WrappedCall: akogen.FunctionSignature{
 								Name: "Get",
 								Args: []akogen.NamedType{
 									{Name: "ctx", Type: "context.Context"},
@@ -107,7 +107,7 @@ func TestGenAPIWrapper(t *testing.T) {
 						{
 							MethodSignature: akogen.MethodSignature{
 								ImplType: akogen.NamedType{Name: "w", Type: "*wrapper"},
-								CallSignature: akogen.CallSignature{
+								FunctionSignature: akogen.FunctionSignature{
 									Name: "Create",
 									Args: []akogen.NamedType{
 										{Name: "ctx", Type: "context.Context"},
@@ -119,7 +119,7 @@ func TestGenAPIWrapper(t *testing.T) {
 									},
 								},
 							},
-							WrappedCall: akogen.CallSignature{
+							WrappedCall: akogen.FunctionSignature{
 								Name: "Create",
 								Args: []akogen.NamedType{
 									{Name: "ctx", Type: "context.Context"},
