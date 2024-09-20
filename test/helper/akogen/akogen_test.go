@@ -1,8 +1,9 @@
 package akogen_test
 
 import (
+	"crypto/rand"
 	"fmt"
-	"math/rand"
+	"math/big"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -39,7 +40,7 @@ func (w *wrapper) Create(ctx context.Context, res *Resource) (*Resource, error) 
 )
 
 func TestGenAPIWrapper(t *testing.T) {
-	packageName := randomString("prefix")
+	packageName := randomString(t, "prefix")
 	for _, tc := range []struct {
 		title     string
 		spec      *akogen.TranslationLayer
@@ -70,65 +71,63 @@ func TestGenAPIWrapper(t *testing.T) {
 					Translation: akogen.Translation{
 						Lib:          akogen.Import{Alias: "lib", Path: "some/path/to/lib"},
 						ExternalName: "Atlas",
-						External:     akogen.Struct{NamedType: akogen.NamedType{Name: "apiRes", Type: "*api.Resource"}},
-						ExternalAPI:  akogen.NamedType{Name: "api", Type: "API"},
-						Internal:     akogen.Struct{NamedType: akogen.NamedType{Name: "res", Type: "*Resource"}},
-						Wrapper:      akogen.NamedType{Name: "w", Type: "wrapper"},
+						External:     akogen.Struct{NamedType: akogen.NewNamedType("apiRes", "*api.Resource")},
+						ExternalAPI:  akogen.NewNamedType("api", "API"),
+						Internal:     akogen.Struct{NamedType: akogen.NewNamedType("res", "*Resource")},
+						Wrapper:      akogen.NewNamedType("w", "wrapper"),
 					},
-					//NamedType: akogen.NamedType{Name: "api", Type: "API"},
 					WrapperMethods: []akogen.WrapperMethod{
 						{
 							MethodSignature: akogen.MethodSignature{
-								Receiver: akogen.NamedType{Name: "w", Type: "*wrapper"},
+								Receiver: akogen.NewNamedType("w", "*wrapper"),
 								FunctionSignature: akogen.FunctionSignature{
 									Name: "Get",
-									Args: []akogen.NamedType{
-										{Name: "ctx", Type: "context.Context"},
-										{Name: "id", Type: "string"},
+									Args: akogen.NamedTypes{
+										akogen.NewNamedType("ctx", "context.Context"),
+										akogen.NewNamedType("id", "string"),
 									},
-									Returns: []akogen.NamedType{
-										{Name: "res", Type: "*Resource"},
-										{Name: "err", Type: "error"},
+									Returns: akogen.NamedTypes{
+										akogen.NewNamedType("res", "*Resource"),
+										akogen.NewNamedType("err", "error"),
 									},
 								},
 							},
 							WrappedCall: akogen.FunctionSignature{
 								Name: "Get",
 								Args: []akogen.NamedType{
-									{Name: "ctx", Type: "context.Context"},
-									{Name: "id", Type: "string"},
+									akogen.NewNamedType("ctx", "context.Context"),
+									akogen.NewNamedType("id", "string"),
 								},
 								Returns: []akogen.NamedType{
-									{Name: "res", Type: "*api.Resource"},
-									{Name: "err", Type: "error"},
+									akogen.NewNamedType("res", "*api.Resource"),
+									akogen.NewNamedType("err", "error"),
 								},
 							},
 						},
-
 						{
 							MethodSignature: akogen.MethodSignature{
-								Receiver: akogen.NamedType{Name: "w", Type: "*wrapper"},
+								Receiver: akogen.NewNamedType("w", "*wrapper"),
 								FunctionSignature: akogen.FunctionSignature{
 									Name: "Create",
 									Args: []akogen.NamedType{
-										{Name: "ctx", Type: "context.Context"},
-										{Name: "res", Type: "*Resource"},
+										akogen.NewNamedType("ctx", "context.Context"),
+										akogen.NewNamedType("res", "*Resource"),
 									},
 									Returns: []akogen.NamedType{
-										{Name: "res", Type: "*Resource"},
-										{Name: "err", Type: "error"},
+										akogen.NewNamedType("res", "*Resource"),
+										akogen.NewNamedType("err", "error"),
 									},
 								},
 							},
 							WrappedCall: akogen.FunctionSignature{
 								Name: "Create",
 								Args: []akogen.NamedType{
-									{Name: "ctx", Type: "context.Context"},
-									{Name: "apiRes", Type: "*api.Resource"},
+									akogen.NewNamedType("ctx", "context.Context"),
+									akogen.NewNamedType("apiRes", "*api.Resource"),
 								},
 								Returns: []akogen.NamedType{
-									{Name: "res", Type: "*api.Resource"},
-									{Name: "err", Type: "error"},
+									akogen.NewNamedType("res", "*api.Resource"),
+									akogen.NewNamedType("err", "error"),
 								},
 							},
 						},
@@ -151,6 +150,8 @@ func TestGenAPIWrapper(t *testing.T) {
 	}
 }
 
-func randomString(prefix string) string {
-	return fmt.Sprintf("%s%d", prefix, rand.Intn(99999))
+func randomString(t *testing.T, prefix string) string {
+	n, err := rand.Int(rand.Reader, big.NewInt(99999))
+	require.NoError(t, err)
+	return fmt.Sprintf("%s%d", prefix, n.Int64())
 }

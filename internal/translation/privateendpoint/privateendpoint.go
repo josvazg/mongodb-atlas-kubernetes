@@ -14,10 +14,10 @@ type PrivateServicesAPI interface {
 	DeleteService(ctx context.Context, projectID, cloudProvider, endpointServiceID string) error
 }
 
-// PrivateEndpointAPI is a service to manage Private Endpoint connections
+// PrivateConnectionAPI is a service to manage Private Endpoint connections
 type PrivateConnectionAPI interface {
 	Get(ctx context.Context, projectID, cloudProvider, endpointID, endpointServiceID string) (*PrivateEndpoint, error)
-	Create(ctx context.Context, projectID, cloudProvider, endpointServiceId string, conn Connection) (*PrivateEndpoint, error)
+	Create(ctx context.Context, projectID, cloudProvider, endpointServiceID string, conn Connection) (*PrivateEndpoint, error)
 	Delete(ctx context.Context, projectID, cloudProvider, endpointID, endpointServiceID string) error
 }
 
@@ -43,7 +43,7 @@ func (p *privateEndpointsAPI) Create(ctx context.Context, projectID string, clou
 		CreateEndpointRequest: connToAtlas(&conn),
 	}).Execute()
 	if err != nil {
-		return nil, fmt.Errorf("failed to Create PrivateEndpoint: %v", err)
+		return nil, fmt.Errorf("failed to Create PrivateEndpoint: %w", err)
 	}
 	return fromAtlas(pe), nil
 }
@@ -55,7 +55,7 @@ func (p *privateEndpointsAPI) CreateService(ctx context.Context, projectID strin
 		Region:       region,
 	}).Execute()
 	if err != nil {
-		return nil, fmt.Errorf("failed to Create EndpointService: %v", err)
+		return nil, fmt.Errorf("failed to Create EndpointService: %w", err)
 	}
 	return serviceFromAtlas(conn), nil
 }
@@ -69,7 +69,7 @@ func (p *privateEndpointsAPI) Delete(ctx context.Context, projectID string, clou
 		EndpointServiceId: endpointServiceID,
 	}).Execute()
 	if err != nil {
-		return fmt.Errorf("failed to Delete EndpointService: %v", err)
+		return fmt.Errorf("failed to Delete EndpointService: %w", err)
 	}
 	return nil
 }
@@ -82,7 +82,7 @@ func (p *privateEndpointsAPI) DeleteService(ctx context.Context, projectID strin
 		EndpointServiceId: endpointServiceID,
 	}).Execute()
 	if err != nil {
-		return fmt.Errorf("failed to Delete EndpointService: %v", err)
+		return fmt.Errorf("failed to Delete EndpointService: %w", err)
 	}
 	return nil
 }
@@ -96,7 +96,7 @@ func (p *privateEndpointsAPI) Get(ctx context.Context, projectID string, cloudPr
 		EndpointServiceId: endpointServiceID,
 	}).Execute()
 	if err != nil {
-		return nil, fmt.Errorf("failed to Get PrivateEndpointService: %v", err)
+		return nil, fmt.Errorf("failed to Get PrivateEndpointService: %w", err)
 	}
 	return fromAtlas(conn), nil
 }
@@ -105,7 +105,7 @@ func (p *privateEndpointsAPI) Get(ctx context.Context, projectID string, cloudPr
 func (p *privateEndpointsAPI) ListServices(ctx context.Context, projectID string, cloudProvider string) ([]EndpointService, error) {
 	conns, _, err := p.peAPI.ListPrivateEndpointServices(ctx, projectID, cloudProvider).Execute()
 	if err != nil {
-		return nil, fmt.Errorf("failed to List PrivateEndpointServices: %v", err)
+		return nil, fmt.Errorf("failed to List PrivateEndpointServices: %w", err)
 	}
 	list := make([]EndpointService, 0, len(conns))
 	for _, conn := range conns {
@@ -113,4 +113,3 @@ func (p *privateEndpointsAPI) ListServices(ctx context.Context, projectID string
 	}
 	return list, nil
 }
-

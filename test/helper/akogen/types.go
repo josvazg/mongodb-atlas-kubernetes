@@ -55,7 +55,12 @@ func (t Type) zeroValue() *jen.Statement {
 
 type NamedType struct {
 	Type
-	Name string
+	Name      string
+	Primitive *Type
+}
+
+func NewNamedType(name, typeName string) NamedType {
+	return NamedType{Name: name, Type: Type(typeName)}
 }
 
 func (nt NamedType) methodReceiver() jen.Code {
@@ -65,6 +70,20 @@ func (nt NamedType) methodReceiver() jen.Code {
 func (nt NamedType) nameType() jen.Code {
 	return jen.Id(nt.Name).Id(string(nt.Type))
 }
+
+// func (nt NamedType) toPrimitive() jen.Code {
+// 	if nt.Primitive != nil {
+// 		return jen.Id(fmt.Sprintf("%s(%s)", *nt.Primitive, nt.Name))
+// 	}
+// 	return jen.Id(nt.Name)
+// }
+
+// func (nt NamedType) fromPrimitive() jen.Code {
+// 	if nt.Primitive != nil {
+// 		return jen.Id(fmt.Sprintf("%s(%s)", nt.Type, nt.Name))
+// 	}
+// 	return jen.Id(nt.Name)
+// }
 
 type NamedTypes []NamedType
 
@@ -106,11 +125,9 @@ func (nts NamedTypes) returnError() *jen.Statement {
 	}
 	list := make([]jen.Code, 0, len(nts))
 	for _, nt := range nts {
-		item := &jen.Statement{}
+		item := nt.zeroValue()
 		if nt.Type == "error" {
 			item = jen.Id(nt.Name)
-		} else {
-			item = nt.zeroValue()
 		}
 		list = append(list, item)
 	}

@@ -2,6 +2,8 @@ package privateendpoint
 
 import (
 	"go.mongodb.org/atlas-sdk/v20231115008/admin"
+
+	"github.com/mongodb/mongodb-atlas-kubernetes/v2/internal/pointer"
 )
 
 type Connection struct {
@@ -33,7 +35,7 @@ type PrivateEndpointConfig struct {
 	Endpoints GCPEndpoints `json:"endpoints,omitempty"`
 }
 
-type PrivateEndpoint struct {
+type PrivateEndpointNotSureWhatThisIs struct {
 	// Unique identifier for AWS or AZURE Private Link Connection.
 	ID string `json:"id,omitempty"`
 	// Cloud provider for which you want to retrieve a private endpoint service. Atlas accepts AWS or AZURE.
@@ -56,39 +58,53 @@ type ProviderName string
 
 type GCPEndpoints []GCPEndpoint
 
-type GCPEndpoint struct {
+type GCPEndpointConfig struct {
 	// Forwarding rule that corresponds to the endpoint you created in Google Cloud.
 	EndpointName string `json:"endpointName,omitempty"`
 	// Private IP address of the endpoint you created in Google Cloud.
 	IPAddress string `json:"ipAddress,omitempty"`
 }
 
-func fromAtlas(pes *admin.PrivateLinkEndpoint) *PrivateEndpoint {
-	panic("unimplemented") //return &PrivateEndpointService{}
+type GCPEndpoint struct {
+	GCPEndpointConfig
+	Status string
 }
 
 func serviceFromAtlas(pes *admin.EndpointService) *EndpointService {
 	panic("unimplemented") //return EndpointService{}
 }
 
-func toAtlas(pe *PrivateEndpointConfig) *admin.PrivateLinkEndpoint {
-	return &admin.PrivateLinkEndpoint{
-		CloudProvider:                 string(pe.Provider),
-		DeleteRequested:               new(bool),
-		ErrorMessage:                  new(string),
-		ConnectionStatus:              new(string),
-		InterfaceEndpointId:           &pe.ID,
-		PrivateEndpointConnectionName: new(string),
-		PrivateEndpointIPAddress:      &pe.IP,
-		PrivateEndpointResourceId:     new(string),
-		Status:                        new(string),
-		EndpointGroupName:             &pe.EndpointGroupName,
-		Endpoints:                     toAtlasGCEEndpoints(pe.Endpoints),
-	}
+type PrivateEndpointStatus struct {
+	DeleteRequested               bool
+	ErrorMessage                  string
+	ConnectionStatus              string
+	PrivateEndpointConnectionName string
+	PrivateEndpointIPAddress      string
+	Status                        string
 }
 
-func connToAtlas(conn *Connection) *admin.CreateEndpointRequest {
-	panic("unimplemented") // return &admin.CreateEndpointRequest{}
+type PrivateEndpoint struct {
+	PrivateEndpointConfig
+	PrivateEndpointStatus
+}
+
+/*
+func toAtlas(pe *PrivateEndpoint) *admin.PrivateLinkEndpoint {
+	return &admin.PrivateLinkEndpoint{
+		// Config
+		CloudProvider:            string(pe.Provider),
+		InterfaceEndpointId:      pointer.MakePtr(pe.ID),
+		PrivateEndpointIPAddress: pointer.MakePtr(pe.IP),
+		EndpointGroupName:        pointer.MakePtr(pe.EndpointGroupName),
+		Endpoints:                toAtlasGCEEndpoints(pe.Endpoints),
+		// Status
+		DeleteRequested:               pointer.MakePtr(pe.DeleteRequested),
+		ErrorMessage:                  pointer.MakePtr(pe.ErrorMessage),
+		ConnectionStatus:              pointer.MakePtr(pe.ConnectionStatus),
+		PrivateEndpointConnectionName: pointer.MakePtr(pe.PrivateEndpointConnectionName),
+		PrivateEndpointResourceId:     pointer.MakePtr(pe.PrivateEndpointIPAddress),
+		Status:                        pointer.MakePtr(pe.Status),
+	}
 }
 
 func toAtlasGCEEndpoints(geps GCPEndpoints) *[]admin.GCPConsumerForwardingRule {
@@ -106,7 +122,46 @@ func toAtlasGCEEndpoints(geps GCPEndpoints) *[]admin.GCPConsumerForwardingRule {
 	}
 	return &rules
 }
+*/
 
-type atlasPE struct {
-	admin.EndpointService
+func fromAtlas(ple *admin.PrivateLinkEndpoint) *PrivateEndpoint {
+	return &PrivateEndpoint{
+		PrivateEndpointConfig: PrivateEndpointConfig{
+			Provider:          ProviderName(ple.CloudProvider),
+			ID:                pointer.GetOrDefault(ple.InterfaceEndpointId, ""),
+			IP:                pointer.GetOrDefault(ple.PrivateEndpointIPAddress, ""),
+			EndpointGroupName: pointer.GetOrDefault(ple.EndpointGroupName, ""),
+			Endpoints:         fromAtlasGCEEndpoints(ple.Endpoints),
+		},
+		PrivateEndpointStatus: PrivateEndpointStatus{
+			DeleteRequested:               pointer.GetOrDefault(ple.DeleteRequested, false),
+			ErrorMessage:                  pointer.GetOrDefault(ple.ErrorMessage, ""),
+			ConnectionStatus:              pointer.GetOrDefault(ple.ConnectionStatus, ""),
+			PrivateEndpointConnectionName: pointer.GetOrDefault(ple.PrivateEndpointConnectionName, ""),
+			PrivateEndpointIPAddress:      pointer.GetOrDefault(ple.PrivateEndpointIPAddress, ""),
+			Status:                        pointer.GetOrDefault(ple.Status, ""),
+		},
+	}
+}
+
+func fromAtlasGCEEndpoints(gfr *[]admin.GCPConsumerForwardingRule) []GCPEndpoint {
+	if gfr == nil {
+		return nil
+	}
+	rules := make([]GCPEndpoint, 0, len(*gfr))
+	for _, fr := range *gfr {
+		rule := GCPEndpoint{
+			GCPEndpointConfig: GCPEndpointConfig{
+				EndpointName: pointer.GetOrDefault(fr.EndpointName, ""),
+				IPAddress:    pointer.GetOrDefault(fr.IpAddress, ""),
+			},
+			Status: pointer.GetOrDefault(fr.Status, ""),
+		}
+		rules = append(rules, rule)
+	}
+	return rules
+}
+
+func connToAtlas(conn *Connection) *admin.CreateEndpointRequest {
+	panic("unimplemented") // return &admin.CreateEndpointRequest{}
 }
