@@ -20,9 +20,9 @@ type WrappedType struct {
 type Translation struct {
 	Lib          Import
 	ExternalName string
-	External     NamedType
+	External     Struct
 	ExternalAPI  NamedType
-	Internal     NamedType
+	Internal     Struct
 	Wrapper      NamedType
 }
 
@@ -77,14 +77,14 @@ func isEmpty(tl *TranslationLayer) bool {
 }
 
 func addMethodSignature(f *jen.File, m *MethodSignature, blockStatements ...jen.Code) *jen.Statement {
-	return f.Func().Params(m.ImplType.methodReceiver()).Id(m.Name).
+	return f.Func().Params(m.Receiver.methodReceiver()).Id(m.Name).
 		Params(m.Args.argsSignature()...).
 		Params(m.Returns.returnsSignature()...).Block(blockStatements...)
 }
 
 func wrapAPICall(wm *WrapperMethod, translation *Translation) *jen.Statement {
 	return wm.WrappedCall.Returns.assignCallReturns().
-		Id(wm.ImplType.Name).Dot(translation.ExternalAPI.Name).Dot(wm.WrappedCall.Name).
+		Id(wm.Receiver.Name).Dot(translation.ExternalAPI.Name).Dot(wm.WrappedCall.Name).
 		Call(translateArgs(translation, wm.Args).callArgs()...)
 }
 

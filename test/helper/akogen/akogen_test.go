@@ -70,16 +70,16 @@ func TestGenAPIWrapper(t *testing.T) {
 					Translation: akogen.Translation{
 						Lib:          akogen.Import{Alias: "lib", Path: "some/path/to/lib"},
 						ExternalName: "Atlas",
-						External:     akogen.NamedType{Name: "apiRes", Type: "*api.Resource"},
+						External:     akogen.Struct{NamedType: akogen.NamedType{Name: "apiRes", Type: "*api.Resource"}},
 						ExternalAPI:  akogen.NamedType{Name: "api", Type: "API"},
-						Internal:     akogen.NamedType{Name: "res", Type: "*Resource"},
+						Internal:     akogen.Struct{NamedType: akogen.NamedType{Name: "res", Type: "*Resource"}},
 						Wrapper:      akogen.NamedType{Name: "w", Type: "wrapper"},
 					},
 					//NamedType: akogen.NamedType{Name: "api", Type: "API"},
 					WrapperMethods: []akogen.WrapperMethod{
 						{
 							MethodSignature: akogen.MethodSignature{
-								ImplType: akogen.NamedType{Name: "w", Type: "*wrapper"},
+								Receiver: akogen.NamedType{Name: "w", Type: "*wrapper"},
 								FunctionSignature: akogen.FunctionSignature{
 									Name: "Get",
 									Args: []akogen.NamedType{
@@ -107,7 +107,7 @@ func TestGenAPIWrapper(t *testing.T) {
 
 						{
 							MethodSignature: akogen.MethodSignature{
-								ImplType: akogen.NamedType{Name: "w", Type: "*wrapper"},
+								Receiver: akogen.NamedType{Name: "w", Type: "*wrapper"},
 								FunctionSignature: akogen.FunctionSignature{
 									Name: "Create",
 									Args: []akogen.NamedType{

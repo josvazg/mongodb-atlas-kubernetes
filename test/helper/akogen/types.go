@@ -20,7 +20,12 @@ type FunctionSignature struct {
 
 type MethodSignature struct {
 	FunctionSignature
-	ImplType NamedType
+	Receiver NamedType
+}
+
+type Struct struct {
+	NamedType
+	Fields NamedTypes
 }
 
 func (t Type) dereference() string {
@@ -111,4 +116,3 @@ func (nts NamedTypes) returnError() *jen.Statement {
 	}
 	return jen.List(list...)
 }
-
