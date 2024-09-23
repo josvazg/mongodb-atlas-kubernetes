@@ -42,6 +42,7 @@ func (w *wrapper) Create(ctx context.Context, res *Resource) (*Resource, error) 
 
 func toAtlas(res *Resource) *api.Resource {
 	return &api.Resource{
+		ComplexSubtype: complexSubtypeToAtlas(res.ComplexSubtype),
 		Enabled:        pointer.MakePtr(res.Enabled),
 		Id:             res.ID,
 		SelectedOption: pointer.MakePtr(string(res.SelectedOption)),
@@ -51,10 +52,25 @@ func toAtlas(res *Resource) *api.Resource {
 
 func fromAtlas(apiRes *api.Resource) *Resource {
 	return &Resource{
+		ComplexSubtype: complexSubtypeFromAtlas(apiRes.ComplexSubtype),
 		Enabled:        pointer.GetOrDefault(apiRes.Enabled, false),
 		ID:             apiRes.Id,
-		SelectedOption: OptionType(pointer.GetOrDefault(apiRes.SelectedOption, "")),
+		SelectedOption: pointer.GetOrDefault(OptionType(apiRes.SelectedOption), ""),
 		Status:         pointer.GetOrDefault(apiRes.Status, ""),
+	}
+}
+
+func complexSubtypeToAtlas(cst ComplexSubtype) api.ComplexSubtype {
+	return api.ComplexSubtype{
+		Name:    cst.Name,
+		Subtype: string(cst.Subtype),
+	}
+}
+
+func complexSubtypeFromAtlas(apiCst api.ComplexSubtype) ComplexSubtype {
+	return ComplexSubtype{
+		Name:    apiCst.Name,
+		Subtype: Subtype(apiCst.Subtype),
 	}
 }
 `
@@ -92,25 +108,31 @@ func TestGenAPIWrapper(t *testing.T) {
 					Translation: akogen.Translation{
 						Lib:          akogen.Import{Alias: "lib", Path: "some/path/to/lib"},
 						ExternalName: "Atlas",
-						External: akogen.Struct{
-							NamedType: akogen.NewNamedType("apiRes", "*api.Resource"),
-							Fields: akogen.NamedTypes{
-								akogen.NewNamedType("Id", "string"),
-								akogen.NewNamedType("SelectedOption", "*OptionType").WithPrimitive("string"),
-								akogen.NewNamedType("Enabled", "*bool"),
-								akogen.NewNamedType("Status", "*string"),
-							},
-						},
+						External: akogen.NewStruct(
+							akogen.NewNamedType("apiRes", "*api.Resource"),
+							akogen.NewSimpleField("Id", "string"),
+							akogen.NewSimpleField("SelectedOption", "*string"),
+							akogen.NewSimpleField("Enabled", "*bool"),
+							akogen.NewSimpleField("Status", "*string"),
+							akogen.NewStruct(
+								akogen.NewNamedType("ComplexSubtype", "api.ComplexSubtype"),
+								akogen.NewSimpleField("Name", "string"),
+								akogen.NewSimpleField("Subtype", "string"),
+							).WithAlias("apiCst"),
+						),
 						ExternalAPI: akogen.NewNamedType("api", "API"),
-						Internal: akogen.Struct{
-							NamedType: akogen.NewNamedType("res", "*Resource"),
-							Fields: akogen.NamedTypes{
-								akogen.NewNamedType("ID", "string"),
-								akogen.NewNamedType("SelectedOption", "string"),
-								akogen.NewNamedType("Enabled", "bool"),
-								akogen.NewNamedType("Status", "string"),
-							},
-						},
+						Internal: akogen.NewStruct(
+							akogen.NewNamedType("res", "*Resource"),
+							akogen.NewSimpleField("ID", "string"),
+							akogen.NewSimpleField("SelectedOption", "OptionType").WithPrimitive("string"),
+							akogen.NewSimpleField("Enabled", "bool"),
+							akogen.NewSimpleField("Status", "string"),
+							akogen.NewStruct(
+								akogen.NewNamedType("ComplexSubtype", "ComplexSubtype"),
+								akogen.NewSimpleField("Name", "string"),
+								akogen.NewSimpleField("Subtype", "Subtype").WithPrimitive("string"),
+							).WithAlias("cst"),
+						),
 						Wrapper: akogen.NewNamedType("w", "wrapper"),
 					},
 					WrapperMethods: []akogen.WrapperMethod{
