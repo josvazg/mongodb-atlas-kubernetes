@@ -7,6 +7,15 @@ import (
 	"github.com/dave/jennifer/jen"
 )
 
+type ComplexKind int
+
+const (
+	SimpleField ComplexKind = iota
+	Struct
+	// Array
+	// Map
+)
+
 type Type string
 
 func (t Type) String() string {
@@ -32,9 +41,48 @@ type MethodSignature struct {
 	Receiver NamedType
 }
 
-type Struct struct {
+type ComplexType struct {
 	NamedType
-	Fields NamedTypes
+	Kind   ComplexKind
+	Alias  string
+	Fields []*ComplexType
+}
+
+func NewSimpleField(name, typeName string) *ComplexType {
+	return &ComplexType{
+		NamedType: NewNamedType(name, typeName),
+		Kind:      SimpleField,
+	}
+}
+
+func (ct *ComplexType) WithPrimitive(primitive Type) *ComplexType {
+	ct.NamedType = ct.NamedType.WithPrimitive(primitive)
+	return ct
+}
+
+func NewStruct(nt NamedType, fields ...*ComplexType) *ComplexType {
+	return &ComplexType{
+		NamedType: nt,
+		Kind:      Struct,
+		Alias:     nt.Name,
+		Fields:    fields,
+	}
+}
+
+func (ct *ComplexType) WithAlias(alias string) *ComplexType {
+	ct.Alias = alias
+	return ct
+}
+
+func (ct *ComplexType) primitive() (*ComplexType, bool) {
+	if ct.Kind != SimpleField {
+		return ct, false
+	}
+	nt, ok := ct.NamedType.primitive()
+	if !ok {
+		return ct, false
+	}
+	return &ComplexType{NamedType: nt, Kind: SimpleField}, true
 }
 
 func (t Type) dereference() Type {
@@ -42,6 +90,11 @@ func (t Type) dereference() Type {
 		return Type(t.String()[1:])
 	}
 	return t
+}
+
+func (t Type) base() string {
+	parts := strings.Split(string(t), ".")
+	return parts[len(parts)-1]
 }
 
 func (t Type) pointer() Type {
@@ -131,7 +184,7 @@ func (nt NamedType) zeroValue() *jen.Statement {
 func (nt NamedType) assignableFrom(other NamedType) bool {
 	nonPtrType := nt.Type.dereference()
 	return nonPtrType.dereference() == nonPtrType.dereference() ||
-	  (other.Primitive!= nil && nonPtrType.dereference() == *other.Primitive)
+		(other.Primitive != nil && nonPtrType.dereference() == *other.Primitive)
 }
 
 func (nt NamedType) methodReceiver() jen.Code {
