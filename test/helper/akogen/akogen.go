@@ -3,9 +3,14 @@ package akogen
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/dave/jennifer/jen"
+)
+
+const (
+	pointerLib = "github.com/mongodb/mongodb-atlas-kubernetes/v2/internal/pointer"
 )
 
 type TranslationLayer struct {
@@ -67,7 +72,7 @@ func GenerateTranslationLayer(tl *TranslationLayer) (string, error) {
 
 func (tl *TranslationLayer) defineWrapperType(f *jen.File) {
 	f.ImportName(tl.WrappedType.Lib.Path, tl.WrappedType.Lib.Alias)
-	f.Type().Id(tl.WrappedType.Wrapper.dereference()).Struct(
+	f.Type().Id(tl.WrappedType.Wrapper.dereference().Type.String()).Struct(
 		jen.Id(tl.WrappedType.ExternalAPI.Name).Qual(
 			tl.WrappedType.Lib.Path, string(tl.WrappedType.ExternalAPI.Type),
 		),
@@ -85,7 +90,7 @@ func (tl *TranslationLayer) implementAPICallWrapping(f *jen.File, wm WrapperMeth
 }
 
 func (tl *TranslationLayer) defineToExternalConversion(f *jen.File) error {
-	conversion, err := returnConversion(tl.WrappedType.External, tl.WrappedType.Internal)
+	conversion, err := returnConversion(&tl.WrappedType.External, &tl.WrappedType.Internal)
 	if err != nil {
 		return fmt.Errorf("struct conversion failed: %v", err)
 	}
@@ -102,7 +107,7 @@ func (tl *TranslationLayer) defineToExternalConversion(f *jen.File) error {
 }
 
 func (tl *TranslationLayer) defineFromExternalConversion(f *jen.File) error {
-	conversion, err := returnConversion(tl.WrappedType.Internal, tl.WrappedType.External)
+	conversion, err := returnConversion(&tl.WrappedType.Internal, &tl.WrappedType.External)
 	if err != nil {
 		return fmt.Errorf("struct conversion failed: %v", err)
 	}
@@ -175,7 +180,7 @@ func returns(returns NamedTypes) *jen.Statement {
 	return jen.Return(jen.List(list...))
 }
 
-func returnConversion(dst, src Struct) (*jen.Statement, error) {
+func returnConversion(dst, src *Struct) (*jen.Statement, error) {
 	typeConversion, err := convertTypes(dst, src)
 	if err != nil {
 		return nil, err
@@ -183,7 +188,7 @@ func returnConversion(dst, src Struct) (*jen.Statement, error) {
 	return jen.Return(typeConversion), nil
 }
 
-func convertTypes(dst, src Struct) (*jen.Statement, error) {
+func convertTypes(dst, src *Struct) (*jen.Statement, error) {
 	fieldConversions, err := convertFields(dst, src)
 	if err != nil {
 		return nil, err
@@ -191,13 +196,13 @@ func convertTypes(dst, src Struct) (*jen.Statement, error) {
 	return jen.Op("&").Id(string(dst.Type.dereference())).Values(fieldConversions), nil
 }
 
-func convertFields(dst, src Struct) (jen.Dict, error) {
+func convertFields(dst, src *Struct) (jen.Dict, error) {
 	remaining := src.Fields
 	values := jen.Dict{}
 	for _, field := range dst.Fields {
 		var err error
 		var conversion *jen.Statement
-		remaining, conversion, err = computeConversion(remaining, field)
+		remaining, conversion, err = computeConversion(remaining, src, field)
 		if err != nil {
 			return nil, fmt.Errorf("failed to compute conversion: %w", err)
 		}
@@ -206,14 +211,81 @@ func convertFields(dst, src Struct) (jen.Dict, error) {
 	return values, nil
 }
 
-func computeConversion(current NamedTypes, field NamedType) (NamedTypes, *jen.Statement, error) {
-	prefix := NamedTypes{}
-	for i, srcField := range current {
-		if strings.EqualFold(field.Type.dereference(), srcField.Type.dereference()) {
-			remaining := append(prefix, current[i:]...)
-			return remaining, jen.Id(srcField.Name), nil
-		}
-		prefix = append(prefix, srcField)
+func computeConversion(candidates NamedTypes, src *Struct, target NamedType) (NamedTypes, *jen.Statement, error) {
+	remaining, srcField, err := findSourceField(candidates, target)
+	if err != nil {
+		return remaining, nil, fmt.Errorf("could not compute conversion: %w", err)
 	}
-	return nil, nil, fmt.Errorf("could not find counterpart for %v at %v", field, current)
+	if srcField == nil {
+		panic(fmt.Sprintf("findResourceField must report error when source is not found for target %v at %v",
+			target, candidates))
+	}
+	assignment, err := computeAssignment(target, src, *srcField)
+	if err != nil {
+		return remaining, nil, fmt.Errorf("could not compute conversion assignment: %w", err)
+	}
+	return remaining, assignment, nil
+}
+
+func findSourceField(candidates NamedTypes, target NamedType) (NamedTypes, *NamedType, error) {
+	prefix := NamedTypes{}
+	for i, candidate := range candidates {
+		if strings.EqualFold(target.Name, candidate.Name) && target.assignableFrom(candidate) {
+			remaining := append(prefix, candidates[i+1:]...)
+			if reflect.DeepEqual(remaining, candidates) {
+				panic(fmt.Sprintf("remaining cannot match candidates, source %v has not been extracted from %v",
+					candidate, remaining))
+			}
+			return remaining, &candidate, nil
+		}
+		prefix = append(prefix, candidate)
+	}
+	return nil, nil, fmt.Errorf("could not find corresponding field for %v at %v", target, candidates)
+}
+
+func computeAssignment(target NamedType, src *Struct, srcField NamedType) (*jen.Statement, error) {
+	switch {
+	// Same types on both sides
+	case srcField.Type == target.Type:
+		return jen.Id(src.Name).Dot(srcField.Name), nil
+	// source field can be converted to the primitive type of the target
+	case srcField.Primitive != nil && *srcField.Primitive == target.Type.dereference():
+		primitive, ok := srcField.primitive()
+		if !ok {
+			return nil, fmt.Errorf("could not cast field %v.%v to primitive type", src, srcField)
+		}
+		assignment, err := computeAssignment(target, src, primitive)
+		if err != nil {
+			return nil, fmt.Errorf("failed to assign after casting field to primitive: %w", err)
+		}
+		return jen.Id(srcField.Type.dereference().String()).Call(assignment), nil
+	// Target is a pointer
+	case target.isPointer() && !srcField.isPointer():
+		assignment, err := computeAssignment(target, src, srcField.pointer())
+		if err != nil {
+			return nil, fmt.Errorf("failed to assign to pointer target %v: %w", target, err)
+		}
+		return jen.Qual(pointerLib, "MakePtr").Call(assignment), nil
+	// Source field is the pointer
+	case srcField.isPointer() && !target.isPointer():
+		deref := srcField.dereference()
+		assignment, err := computeAssignment(target, src, deref)
+		if err != nil {
+			return nil, fmt.Errorf("failed to assign to pointer target %v: %w", target, err)
+		}
+		return jen.Qual(pointerLib, "GetOrDefault").Call(jen.List(assignment, deref.zeroValue())), nil
+	// target can be converted from the primitive type of the source field
+	case target.Primitive != nil && *target.Primitive == srcField.Type.dereference():
+		primitive, ok := target.primitive()
+		if !ok {
+			return nil, fmt.Errorf("could not cast target %v to primitive type", target)
+		}
+		assignment, err := computeAssignment(primitive, src, srcField)
+		if err != nil {
+			return nil, fmt.Errorf("failed to assign after casting field to primitive: %w", err)
+		}
+		return jen.Id(primitive.Type.dereference().String()).Call(assignment), nil
+	default:
+		return nil, fmt.Errorf("cannot find way to assign %s.%v to %v", src, srcField, target)
+	}
 }

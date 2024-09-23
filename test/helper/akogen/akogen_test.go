@@ -16,7 +16,7 @@ const (
 	wrappedCallSample = `package %s
 
 import (
-	"internal/pointer"
+	pointer "github.com/mongodb/mongodb-atlas-kubernetes/v2/internal/pointer"
 	"some/path/to/lib"
 )
 
@@ -43,7 +43,7 @@ func (w *wrapper) Create(ctx context.Context, res *Resource) (*Resource, error) 
 func toAtlas(res *Resource) *api.Resource {
 	return &api.Resource{
 		Enabled:        pointer.MakePtr(res.Enabled),
-		Id:             ID,
+		Id:             res.ID,
 		SelectedOption: pointer.MakePtr(string(res.SelectedOption)),
 		Status:         pointer.MakePtr(res.Status),
 	}
@@ -52,8 +52,8 @@ func toAtlas(res *Resource) *api.Resource {
 func fromAtlas(apiRes *api.Resource) *Resource {
 	return &Resource{
 		Enabled:        pointer.GetOrDefault(apiRes.Enabled, false),
-		ID: Id,
-		SelectedOption: OptionType(pointer.GetOrDefault(apiRes.Option,"")),
+		ID:             apiRes.Id,
+		SelectedOption: OptionType(pointer.GetOrDefault(apiRes.SelectedOption, "")),
 		Status:         pointer.GetOrDefault(apiRes.Status, ""),
 	}
 }
@@ -96,7 +96,7 @@ func TestGenAPIWrapper(t *testing.T) {
 							NamedType: akogen.NewNamedType("apiRes", "*api.Resource"),
 							Fields: akogen.NamedTypes{
 								akogen.NewNamedType("Id", "string"),
-								akogen.NewNamedType("SelectedOption", "*Option"),
+								akogen.NewNamedType("SelectedOption", "*OptionType").WithPrimitive("string"),
 								akogen.NewNamedType("Enabled", "*bool"),
 								akogen.NewNamedType("Status", "*string"),
 							},
@@ -106,7 +106,7 @@ func TestGenAPIWrapper(t *testing.T) {
 							NamedType: akogen.NewNamedType("res", "*Resource"),
 							Fields: akogen.NamedTypes{
 								akogen.NewNamedType("ID", "string"),
-								akogen.NewNamedType("SelectedOption", "Option"),
+								akogen.NewNamedType("SelectedOption", "string"),
 								akogen.NewNamedType("Enabled", "bool"),
 								akogen.NewNamedType("Status", "string"),
 							},
