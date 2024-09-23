@@ -1,12 +1,21 @@
 package akogen
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/dave/jennifer/jen"
 )
 
 type Type string
+
+func (t Type) String() string {
+	return string(t)
+}
+
+func (t Type) isPointer() bool {
+	return t.String()[0] == '*'
+}
 
 type Import struct {
 	Alias, Path string
@@ -28,12 +37,15 @@ type Struct struct {
 	Fields NamedTypes
 }
 
-func (t Type) dereference() string {
-	str := string(t)
-	for str[0] == '*' {
-		str = str[1:]
+func (t Type) dereference() Type {
+	for t.isPointer() {
+		return Type(t.String()[1:])
 	}
-	return str
+	return t
+}
+
+func (t Type) pointer() Type {
+	return Type(fmt.Sprintf("*%v", t))
 }
 
 func (t Type) zeroValue() *jen.Statement {
@@ -49,6 +61,9 @@ func (t Type) zeroValue() *jen.Statement {
 	if strings.Contains("float float32 float64", string(t)) {
 		return jen.Lit(0.0)
 	}
+	if strings.Contains("bool", string(t)) {
+		return jen.False()
+	}
 	// TODO be smarter about non primitive types?
 	return jen.Nil()
 }
@@ -63,6 +78,62 @@ func NewNamedType(name, typeName string) NamedType {
 	return NamedType{Name: name, Type: Type(typeName)}
 }
 
+func (nt NamedType) WithPrimitive(primitive Type) NamedType {
+	nt.Primitive = &primitive
+	return nt
+}
+
+func (nt NamedType) String() string {
+	if nt.Primitive != nil {
+		return fmt.Sprintf("{%s %v(%v)}", nt.Name, nt.Type, *nt.Primitive)
+	}
+	return fmt.Sprintf("{%s %v}", nt.Name, nt.Type)
+}
+
+func (nt NamedType) dereference() NamedType {
+	return NamedType{
+		Type:      nt.Type.dereference(),
+		Name:      nt.Name,
+		Primitive: nt.Primitive,
+	}
+}
+
+func (nt NamedType) pointer() NamedType {
+	return NamedType{
+		Type:      nt.Type.pointer(),
+		Name:      nt.Name,
+		Primitive: nt.Primitive,
+	}
+}
+
+func (nt NamedType) primitive() (NamedType, bool) {
+	if nt.Primitive == nil {
+		return nt, false
+	}
+	newType := *nt.Primitive
+	if nt.isPointer() {
+		newType = newType.pointer()
+	}
+	return NamedType{
+		Type:      newType,
+		Name:      nt.Name,
+		Primitive: nil,
+	}, true
+}
+
+func (nt NamedType) zeroValue() *jen.Statement {
+	if nt.Primitive == nil {
+		return nt.Type.zeroValue()
+	}
+	return nt.Primitive.zeroValue()
+}
+
+func (nt NamedType) assignableFrom(other NamedType) bool {
+	nonPtrType := nt.Type.dereference()
+	return nonPtrType.dereference() == nonPtrType.dereference() ||
+	  (other.Primitive!= nil && nonPtrType.dereference() == *other.Primitive)
+}
+
 func (nt NamedType) methodReceiver() jen.Code {
 	return nt.nameType()
 }
@@ -70,20 +141,6 @@ func (nt NamedType) methodReceiver() jen.Code {
 func (nt NamedType) nameType() jen.Code {
 	return jen.Id(nt.Name).Id(string(nt.Type))
 }
-
-// func (nt NamedType) toPrimitive() jen.Code {
-// 	if nt.Primitive != nil {
-// 		return jen.Id(fmt.Sprintf("%s(%s)", *nt.Primitive, nt.Name))
-// 	}
-// 	return jen.Id(nt.Name)
-// }
-
-// func (nt NamedType) fromPrimitive() jen.Code {
-// 	if nt.Primitive != nil {
-// 		return jen.Id(fmt.Sprintf("%s(%s)", nt.Type, nt.Name))
-// 	}
-// 	return jen.Id(nt.Name)
-// }
 
 type NamedTypes []NamedType
 
