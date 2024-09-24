@@ -25,12 +25,37 @@ func (t Type) dereference() Type {
 }
 
 func (t Type) base() string {
-	parts := strings.Split(string(t), ".")
+	parts := strings.Split(string(t.dereference()), ".")
 	return parts[len(parts)-1]
+}
+
+func (t Type) lib() string {
+	deref := t.dereference()
+	totalSize := len(string(deref))
+	baseSize := len(t.base())
+	if baseSize == totalSize {
+		return ""
+	}
+	// return all but the dot and base suffix
+	return string(deref)[:totalSize-baseSize-1]
 }
 
 func (t Type) pointer() Type {
 	return Type(fmt.Sprintf("*%v", t))
+}
+
+func (t Type) generate(prior *jen.Statement) *jen.Statement {
+	if prior == nil {
+		prior = jen.Empty()
+	}
+	lib := t.lib()
+	if lib != "" {
+		if t.isPointer() {
+			return prior.Op("*").Qual(lib, t.base())
+		}
+		return prior.Qual(lib, t.base())
+	}
+	return prior.Id(string(t))
 }
 
 func (t Type) generateZeroValue() *jen.Statement {
@@ -52,4 +77,3 @@ func (t Type) generateZeroValue() *jen.Statement {
 	// TODO be smarter about non primitive types?
 	return jen.Nil()
 }
-

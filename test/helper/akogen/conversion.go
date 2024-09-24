@@ -74,12 +74,12 @@ func (c *Conversion) generate(f *jen.File) error {
 		if err := conversion.generateFunc(f); err != nil {
 			return fmt.Errorf("failed to generate conversion to external type: %w", err)
 		}
-		f.Empty()
+		f.Line()
 		conversion = conversion.reverse()
 		if err := conversion.generateFunc(f); err != nil {
 			return fmt.Errorf("failed to generate conversion to external type: %w", err)
 		}
-		f.Empty()
+		f.Line()
 	}
 	return nil
 }
@@ -87,7 +87,7 @@ func (c *Conversion) generate(f *jen.File) error {
 func (c *Conversion) generateFunc(f *jen.File) error {
 	returnCode, err := c.generateReturn()
 	if err != nil {
-		return fmt.Errorf("struct conversion failed: %v", err)
+		return fmt.Errorf("struct conversion failed: %w", err)
 	}
 	generateFunctionSignature(
 		f,
@@ -141,9 +141,9 @@ func (c *Conversion) generateAssignmentExpression() (*jen.Statement, error) {
 		return nil, err
 	}
 	if c.Target.isPointer() {
-		return jen.Op("&").Id(string(c.Target.Type.dereference())).Values(fieldConversions), nil
+		return c.Target.Type.dereference().generate(jen.Op("&")).Values(fieldConversions), nil
 	}
-	return jen.Id(string(c.Target.Type.String())).Values(fieldConversions), nil
+	return c.Target.Type.generate(nil).Values(fieldConversions), nil
 }
 
 func (c *Conversion) generateFields() (jen.Dict, error) {
@@ -178,7 +178,7 @@ func (c *Conversion) generateFields() (jen.Dict, error) {
 func findSourceField(candidates []*DataField, target *DataField) ([]*DataField, *DataField, error) {
 	prefix := []*DataField{}
 	for i, candidate := range candidates {
-		if strings.EqualFold(target.FieldName, candidate.FieldName) && target.assignableFrom(candidate.NamedType) {
+		if strings.EqualFold(target.FieldName, candidate.FieldName) && target.assignableFrom(candidate) {
 			remaining := append(prefix, candidates[i+1:]...)
 			if reflect.DeepEqual(remaining, candidates) {
 				panic(fmt.Sprintf("remaining cannot match candidates, source %v has not been extracted from %v",
@@ -193,10 +193,21 @@ func findSourceField(candidates []*DataField, target *DataField) ([]*DataField, 
 
 func generateAssignment(target *DataType, src *DataType, srcField NamedType) (*jen.Statement, error) {
 	switch {
-
 	// Same types on both sides
 	case srcField.Type == target.Type:
 		return jen.Id(src.Name).Dot(srcField.Name), nil
+
+	// Target can be converted from the primitive type of the source field
+	case target.Primitive != nil && *target.Primitive == srcField.Type.dereference():
+		primitive, ok := target.primitive()
+		if !ok {
+			return nil, fmt.Errorf("could not cast target %v to primitive type", target)
+		}
+		assignment, err := generateAssignment(primitive, src, srcField)
+		if err != nil {
+			return nil, fmt.Errorf("failed to assign after casting field to primitive: %w", err)
+		}
+		return jen.Id(target.Type.dereference().String()).Call(assignment), nil
 
 	// Target is a pointer
 	case target.isPointer() && !srcField.isPointer():
@@ -214,18 +225,6 @@ func generateAssignment(target *DataType, src *DataType, srcField NamedType) (*j
 			return nil, fmt.Errorf("failed to assign to pointer target %v: %w", target, err)
 		}
 		return jen.Qual(pointerLib, "GetOrDefault").Call(jen.List(assignment, deref.generateZeroValue())), nil
-
-	// Target can be converted from the primitive type of the source field
-	case target.Primitive != nil && *target.Primitive == srcField.Type.dereference():
-		primitive, ok := target.primitive()
-		if !ok {
-			return nil, fmt.Errorf("could not cast target %v to primitive type", target)
-		}
-		assignment, err := generateAssignment(primitive, src, srcField)
-		if err != nil {
-			return nil, fmt.Errorf("failed to assign after casting field to primitive: %w", err)
-		}
-		return jen.Id(target.Type.dereference().String()).Call(assignment), nil
 
 	// Source field can be converted to the primitive type of the target
 	case srcField.Primitive != nil && *srcField.Primitive == target.Type.dereference():

@@ -68,8 +68,9 @@ func (nt NamedType) generateZeroValue() *jen.Statement {
 
 func (nt NamedType) assignableFrom(other NamedType) bool {
 	nonPtrType := nt.Type.dereference()
-	return nonPtrType.dereference() == nonPtrType.dereference() ||
-		(other.Primitive != nil && nonPtrType.dereference() == *other.Primitive)
+	return other.Type.dereference() == nonPtrType.dereference() ||
+		(other.Primitive != nil && nonPtrType.dereference() == *other.Primitive) ||
+		(nt.Primitive != nil && other.Type.dereference() == *nt.Primitive)
 }
 
 func (nt NamedType) generateMethodReceiver() *jen.Statement {
@@ -77,7 +78,7 @@ func (nt NamedType) generateMethodReceiver() *jen.Statement {
 }
 
 func (nt NamedType) generateNameType() *jen.Statement {
-	return jen.Id(nt.Name).Id(string(nt.Type))
+	return nt.Type.generate(jen.Id(nt.Name))
 }
 
 type NamedTypes []NamedType
@@ -93,7 +94,7 @@ func (nts NamedTypes) generateArgsSignature() []jen.Code {
 func (nts NamedTypes) generateReturnsSignature() []jen.Code {
 	list := make([]jen.Code, 0, len(nts))
 	for _, nt := range nts {
-		list = append(list, jen.Id(string(nt.Type)))
+		list = append(list, nt.Type.generate(nil))
 	}
 	return list
 }
