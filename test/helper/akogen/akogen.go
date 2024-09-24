@@ -1,8 +1,6 @@
 package akogen
 
 import (
-	"fmt"
-
 	"github.com/dave/jennifer/jen"
 )
 
@@ -30,22 +28,6 @@ func generateMethodSignature(f *jen.File, m *MethodSignature, blockStatements ..
 	return f.Func().Params(m.Receiver.generateMethodReceiver()).Id(m.Name).
 		Params(m.Args.generateArgsSignature()...).
 		Params(m.Returns.generateReturnsSignature()...).Block(blockStatements...)
-}
-
-func translateArgs(translation *Translation, vars []NamedType) NamedTypes {
-	outVars := make(NamedTypes, 0, len(vars))
-	for _, v := range vars {
-		switch v.Type {
-		case translation.External.Type:
-			v.Name = fmt.Sprintf("from%s(%s)", translation.ExternalName, v.Name)
-		case translation.Internal.Type:
-			v.Name = fmt.Sprintf("to%s(%s)", translation.ExternalName, v.Name)
-		case "error":
-			v.Name = "nil"
-		}
-		outVars = append(outVars, v)
-	}
-	return outVars
 }
 
 func generateReturnOnError(returns NamedTypes) *jen.Statement {

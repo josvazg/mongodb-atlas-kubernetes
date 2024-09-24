@@ -37,7 +37,7 @@ func (wt *WrappedType) generate(f *jen.File) error {
 	)
 	for _, wm := range wt.WrapperMethods {
 		wt.generateCallWrap(f, wm)
-		f.Empty()
+		f.Line()
 	}
 	return nil
 }
@@ -56,4 +56,20 @@ func wrapCall(wm *WrapperMethod, translation *Translation) *jen.Statement {
 	return wm.WrappedCall.Returns.generateAssignCallReturns().
 		Id(wm.Receiver.Name).Dot(translation.ExternalAPI.Name).Dot(wm.WrappedCall.Name).
 		Call(translateArgs(translation, wm.Args).generateCallArgs()...)
+}
+
+func translateArgs(translation *Translation, vars []NamedType) NamedTypes {
+	outVars := make(NamedTypes, 0, len(vars))
+	for _, v := range vars {
+		switch v.Type {
+		case translation.External.Type:
+			v.Name = fmt.Sprintf("from%s(%s)", translation.ExternalName, v.Name)
+		case translation.Internal.Type:
+			v.Name = fmt.Sprintf("to%s(%s)", translation.ExternalName, v.Name)
+		case "error":
+			v.Name = "nil"
+		}
+		outVars = append(outVars, v)
+	}
+	return outVars
 }

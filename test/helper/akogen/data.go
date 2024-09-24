@@ -1,6 +1,19 @@
 package akogen
 
+import "fmt"
+
 type DataKind int
+
+func (dk DataKind) String() string {
+	switch dk {
+	case SimpleField:
+		return "SimpleField"
+	case Struct:
+		return "Struct"
+	default:
+		return "(unknown)"
+	}
+}
 
 const (
 	SimpleField DataKind = iota
@@ -15,9 +28,23 @@ type DataType struct {
 	Fields []*DataField
 }
 
+func (dt *DataType) String() string {
+	return fmt.Sprintf("[%s Kind=%v %d Fields]", dt.NamedType, dt.Kind, len(dt.Fields))
+}
+
 type DataField struct {
 	DataType
 	FieldName string
+}
+
+func (df *DataField) String() string {
+	return fmt.Sprintf("%s:%s", df.FieldName, &df.DataType)
+}
+
+func (df *DataField) assignableFrom(other *DataField) bool {
+	return df.Kind == other.Kind &&
+		(df.Kind == SimpleField && df.NamedType.assignableFrom(other.NamedType)) ||
+		(df.Kind != SimpleField)
 }
 
 func NewSimpleField(name, typeName string) *DataField {
