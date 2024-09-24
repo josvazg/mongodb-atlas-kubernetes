@@ -203,7 +203,7 @@ func TestGenAPIWrapper(t *testing.T) {
 		},
 	} {
 		t.Run(tc.title, func(t *testing.T) {
-			src, err := akogen.GenerateTranslationLayer(tc.spec)
+			src, err := tc.spec.Generate()
 			if tc.wantError != nil {
 				require.Empty(t, src)
 				assert.Equal(t, tc.wantError, err)
