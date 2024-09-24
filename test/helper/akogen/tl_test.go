@@ -136,15 +136,17 @@ func TestGenAPIWrapper(t *testing.T) {
 							akogen.NewSimpleField("SelectedOption", "*string"),
 							akogen.NewSimpleField("Enabled", "*bool"),
 							akogen.NewSimpleField("Status", "*string"),
-							akogen.NewStruct(
-								akogen.NewNamedType("ComplexSubtype", "api.ComplexSubtype"),
+							akogen.NewStructField(
+								"ComplexSubtype",
+								akogen.NewNamedType("apiCst", "api.ComplexSubtype"),
 								akogen.NewSimpleField("Name", "string"),
 								akogen.NewSimpleField("Subtype", "string"),
-							).WithAlias("apiCst"),
-							akogen.NewStruct(
-								akogen.NewNamedType("OptionalRef", "*api.OptionalRef"),
+							),
+							akogen.NewStructField(
+								"OptionalRef",
+								akogen.NewNamedType("apiOr", "*api.OptionalRef"),
 								akogen.NewSimpleField("Ref", "string"),
-							).WithAlias("apiOr"),
+							),
 						),
 						ExternalAPI: akogen.NewNamedType("api", "API"),
 						Internal: akogen.NewStruct(
@@ -153,15 +155,17 @@ func TestGenAPIWrapper(t *testing.T) {
 							akogen.NewSimpleField("SelectedOption", "OptionType").WithPrimitive("string"),
 							akogen.NewSimpleField("Enabled", "bool"),
 							akogen.NewSimpleField("Status", "string"),
-							akogen.NewStruct(
-								akogen.NewNamedType("ComplexSubtype", "ComplexSubtype"),
+							akogen.NewStructField(
+								"ComplexSubtype",
+								akogen.NewNamedType("cst", "ComplexSubtype"),
 								akogen.NewSimpleField("Name", "string"),
 								akogen.NewSimpleField("Subtype", "Subtype").WithPrimitive("string"),
-							).WithAlias("cst"),
-							akogen.NewStruct(
-								akogen.NewNamedType("OptionalRef", "*OptionalRef"),
+							),
+							akogen.NewStructField(
+								"OptionalRef",
+								akogen.NewNamedType("or", "*OptionalRef"),
 								akogen.NewSimpleField("Ref", "string"),
-							).WithAlias("or"),
+							),
 						),
 						Wrapper: akogen.NewNamedType("w", "wrapper"),
 					},
