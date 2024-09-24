@@ -41,6 +41,9 @@ func (w *wrapper) Create(ctx context.Context, res *Resource) (*Resource, error) 
 }
 
 func toAtlas(res *Resource) *api.Resource {
+	if res == nil {
+		return nil
+	}
 	return &api.Resource{
 		ComplexSubtype: complexSubtypeToAtlas(res.ComplexSubtype),
 		Enabled:        pointer.MakePtr(res.Enabled),
@@ -51,6 +54,9 @@ func toAtlas(res *Resource) *api.Resource {
 }
 
 func fromAtlas(apiRes *api.Resource) *Resource {
+	if apiRes == nil {
+		return nil
+	}
 	return &Resource{
 		ComplexSubtype: complexSubtypeFromAtlas(apiRes.ComplexSubtype),
 		Enabled:        pointer.GetOrDefault(apiRes.Enabled, false),

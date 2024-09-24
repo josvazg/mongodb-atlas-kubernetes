@@ -200,6 +200,7 @@ func writeConversionFunc(f *jen.File, conversion *Conversion) error {
 			Args:    []NamedType{source.NamedType},
 			Returns: []NamedType{conversion.Target.NamedType},
 		},
+		returnNilOnNilArg(conversion.Source.NamedType),
 		conversionBody,
 	)
 	return nil
@@ -249,6 +250,15 @@ func returnOnError(returns NamedTypes) jen.Code {
 	return jen.If(jen.Id("err").Op("!=").Nil()).Block(
 		jen.Return(returns.returnError()),
 	)
+}
+
+func returnNilOnNilArg(nt NamedType) jen.Code {
+	if nt.isPointer() {
+		return jen.If(jen.Id(nt.Name).Op("==").Nil()).Block(
+			jen.Return(jen.Nil()),
+		)
+	}
+	return nil
 }
 
 func returns(returns NamedTypes) *jen.Statement {
