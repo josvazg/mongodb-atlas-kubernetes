@@ -18,11 +18,11 @@ type Conversion struct {
 	Root   bool
 	To     bool
 	Name   string
-	Source *ComplexType
-	Target *ComplexType
+	Source *DataType
+	Target *DataType
 }
 
-func NewConversion(name string, target, source *ComplexType) *Conversion {
+func NewConversion(name string, target, source *DataType) *Conversion {
 	return &Conversion{
 		Root:   true,
 		To:     true,
@@ -33,7 +33,7 @@ func NewConversion(name string, target, source *ComplexType) *Conversion {
 }
 
 func (c *Conversion) String() string {
-	return fmt.Sprintf("{Method: %v, Source: %v, Target: %v", c.method(), c.Source, c.Target)
+	return fmt.Sprintf("{Method: %v, Source: %v, Target: %v}", c.method(), c.Source, c.Target)
 }
 
 func (c *Conversion) direction() string {
@@ -119,7 +119,7 @@ func (c *Conversion) subConversions() ([]*Conversion, error) {
 	return conversions, nil
 }
 
-func (c *Conversion) subConversion(target, source *ComplexType) *Conversion {
+func (c *Conversion) subConversion(target, source *DataType) *Conversion {
 	return &Conversion{
 		Root:   false,
 		To:     c.To,
@@ -153,7 +153,7 @@ func (c *Conversion) generateFields() (jen.Dict, error) {
 	values := jen.Dict{}
 	for _, field := range c.Target.Fields {
 		var err error
-		var srcField *ComplexType
+		var srcField *DataType
 		var conversion *jen.Statement
 		remaining, srcField, err = findSourceField(remaining, field)
 		if err != nil {
@@ -176,8 +176,8 @@ func (c *Conversion) generateFields() (jen.Dict, error) {
 	return values, nil
 }
 
-func findSourceField(candidates []*ComplexType, target *ComplexType) ([]*ComplexType, *ComplexType, error) {
-	prefix := []*ComplexType{}
+func findSourceField(candidates []*DataType, target *DataType) ([]*DataType, *DataType, error) {
+	prefix := []*DataType{}
 	for i, candidate := range candidates {
 		if strings.EqualFold(target.Name, candidate.Name) && target.assignableFrom(candidate.NamedType) {
 			remaining := append(prefix, candidates[i+1:]...)
@@ -192,7 +192,7 @@ func findSourceField(candidates []*ComplexType, target *ComplexType) ([]*Complex
 	return nil, nil, fmt.Errorf("could not find corresponding field for %v at %v", target, candidates)
 }
 
-func generateAssignment(target *ComplexType, src *ComplexType, srcField NamedType) (*jen.Statement, error) {
+func generateAssignment(target *DataType, src *DataType, srcField NamedType) (*jen.Statement, error) {
 	switch {
 
 	// Same types on both sides
@@ -214,7 +214,7 @@ func generateAssignment(target *ComplexType, src *ComplexType, srcField NamedTyp
 		if err != nil {
 			return nil, fmt.Errorf("failed to assign to pointer target %v: %w", target, err)
 		}
-		return jen.Qual(pointerLib, "GetOrDefault").Call(jen.List(assignment, deref.zeroValue())), nil
+		return jen.Qual(pointerLib, "GetOrDefault").Call(jen.List(assignment, deref.generateZeroValue())), nil
 
 	// Target can be converted from the primitive type of the source field
 	case target.Primitive != nil && *target.Primitive == srcField.Type.dereference():

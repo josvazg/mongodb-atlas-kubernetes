@@ -6,15 +6,30 @@ import (
 	"github.com/dave/jennifer/jen"
 )
 
+type Import struct {
+	Alias, Path string
+}
+
+type FunctionSignature struct {
+	Name    string
+	Args    NamedTypes
+	Returns NamedTypes
+}
+
+type MethodSignature struct {
+	FunctionSignature
+	Receiver NamedType
+}
+
 func generateFunctionSignature(f *jen.File, fns *FunctionSignature, blockStatements ...jen.Code) *jen.Statement {
-	return f.Func().Id(fns.Name).Params(fns.Args.argsSignature()...).
-		Params(fns.Returns.returnsSignature()...).Block(blockStatements...)
+	return f.Func().Id(fns.Name).Params(fns.Args.generateArgsSignature()...).
+		Params(fns.Returns.generateReturnsSignature()...).Block(blockStatements...)
 }
 
 func generateMethodSignature(f *jen.File, m *MethodSignature, blockStatements ...jen.Code) *jen.Statement {
-	return f.Func().Params(m.Receiver.methodReceiver()).Id(m.Name).
-		Params(m.Args.argsSignature()...).
-		Params(m.Returns.returnsSignature()...).Block(blockStatements...)
+	return f.Func().Params(m.Receiver.generateMethodReceiver()).Id(m.Name).
+		Params(m.Args.generateArgsSignature()...).
+		Params(m.Returns.generateReturnsSignature()...).Block(blockStatements...)
 }
 
 func translateArgs(translation *Translation, vars []NamedType) NamedTypes {
@@ -38,7 +53,7 @@ func generateReturnOnError(returns NamedTypes) *jen.Statement {
 		panic("expected one or more returns")
 	}
 	return jen.If(jen.Id("err").Op("!=").Nil()).Block(
-		jen.Return(returns.returnError()),
+		jen.Return(returns.generateReturnError()),
 	)
 }
 

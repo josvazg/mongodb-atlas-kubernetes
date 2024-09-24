@@ -48,6 +48,7 @@ func toAtlas(res *Resource) *api.Resource {
 		ComplexSubtype: complexSubtypeToAtlas(res.ComplexSubtype),
 		Enabled:        pointer.MakePtr(res.Enabled),
 		Id:             res.ID,
+		OptionalRef:    optionalRefToAtlas(res.OptionalRef),
 		SelectedOption: pointer.MakePtr(string(res.SelectedOption)),
 		Status:         pointer.MakePtr(res.Status),
 	}
@@ -61,6 +62,7 @@ func fromAtlas(apiRes *api.Resource) *Resource {
 		ComplexSubtype: complexSubtypeFromAtlas(apiRes.ComplexSubtype),
 		Enabled:        pointer.GetOrDefault(apiRes.Enabled, false),
 		ID:             apiRes.Id,
+		OptionalRef:    optionalRefFromAtlas(apiRes.OptionalRef),
 		SelectedOption: pointer.GetOrDefault(OptionType(apiRes.SelectedOption), ""),
 		Status:         pointer.GetOrDefault(apiRes.Status, ""),
 	}
@@ -78,6 +80,20 @@ func complexSubtypeFromAtlas(apiCst api.ComplexSubtype) ComplexSubtype {
 		Name:    apiCst.Name,
 		Subtype: Subtype(apiCst.Subtype),
 	}
+}
+
+func optionalRefToAtlas(or *OptionalRef) *api.OptionalRef {
+	if or == nil {
+		return nil
+	}
+	return &api.OptionalRef{Ref: or.Ref}
+}
+
+func optionalRefFromAtlas(apiOr *api.OptionalRef) *OptionalRef {
+	if apiOr == nil {
+		return nil
+	}
+	return &OptionalRef{Ref: apiOr.Ref}
 }
 `
 )
@@ -125,6 +141,10 @@ func TestGenAPIWrapper(t *testing.T) {
 								akogen.NewSimpleField("Name", "string"),
 								akogen.NewSimpleField("Subtype", "string"),
 							).WithAlias("apiCst"),
+							akogen.NewStruct(
+								akogen.NewNamedType("OptionalRef", "*api.OptionalRef"),
+								akogen.NewSimpleField("Ref", "string"),
+							).WithAlias("apiOr"),
 						),
 						ExternalAPI: akogen.NewNamedType("api", "API"),
 						Internal: akogen.NewStruct(
@@ -138,6 +158,10 @@ func TestGenAPIWrapper(t *testing.T) {
 								akogen.NewSimpleField("Name", "string"),
 								akogen.NewSimpleField("Subtype", "Subtype").WithPrimitive("string"),
 							).WithAlias("cst"),
+							akogen.NewStruct(
+								akogen.NewNamedType("OptionalRef", "*OptionalRef"),
+								akogen.NewSimpleField("Ref", "string"),
+							).WithAlias("or"),
 						),
 						Wrapper: akogen.NewNamedType("w", "wrapper"),
 					},
