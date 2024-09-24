@@ -14,9 +14,9 @@ type WrappedType struct {
 type Translation struct {
 	Lib          Import
 	ExternalName string
-	External     *ComplexType
+	External     *DataType
 	ExternalAPI  NamedType
-	Internal     *ComplexType
+	Internal     *DataType
 	Wrapper      NamedType
 }
 
@@ -53,7 +53,7 @@ func (wt *WrappedType) generateCallWrap(f *jen.File, wm WrapperMethod) {
 }
 
 func wrapCall(wm *WrapperMethod, translation *Translation) *jen.Statement {
-	return wm.WrappedCall.Returns.assignCallReturns().
+	return wm.WrappedCall.Returns.generateAssignCallReturns().
 		Id(wm.Receiver.Name).Dot(translation.ExternalAPI.Name).Dot(wm.WrappedCall.Name).
-		Call(translateArgs(translation, wm.Args).callArgs()...)
+		Call(translateArgs(translation, wm.Args).generateCallArgs()...)
 }
