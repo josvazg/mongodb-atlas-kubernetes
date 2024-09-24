@@ -85,8 +85,6 @@ func (c *Conversion) generate(f *jen.File) error {
 }
 
 func (c *Conversion) generateFunc(f *jen.File) error {
-	source := c.Source
-	source.NamedType.Name = source.Alias
 	returnCode, err := c.generateReturn()
 	if err != nil {
 		return fmt.Errorf("struct conversion failed: %v", err)
@@ -95,7 +93,7 @@ func (c *Conversion) generateFunc(f *jen.File) error {
 		f,
 		&FunctionSignature{
 			Name:    c.method(),
-			Args:    []NamedType{source.NamedType},
+			Args:    []NamedType{c.Source.NamedType},
 			Returns: []NamedType{c.Target.NamedType},
 		},
 		generateReturnNilOnNilArg(c.Source.NamedType),
@@ -119,13 +117,13 @@ func (c *Conversion) subConversions() ([]*Conversion, error) {
 	return conversions, nil
 }
 
-func (c *Conversion) subConversion(target, source *DataType) *Conversion {
+func (c *Conversion) subConversion(target, source *DataField) *Conversion {
 	return &Conversion{
 		Root:   false,
 		To:     c.To,
 		Name:   c.Name,
-		Source: source,
-		Target: target,
+		Source: &source.DataType,
+		Target: &target.DataType,
 	}
 }
 
@@ -153,33 +151,34 @@ func (c *Conversion) generateFields() (jen.Dict, error) {
 	values := jen.Dict{}
 	for _, field := range c.Target.Fields {
 		var err error
-		var srcField *DataType
+		var srcField *DataField
 		var conversion *jen.Statement
 		remaining, srcField, err = findSourceField(remaining, field)
 		if err != nil {
 			return nil, fmt.Errorf("failed to match conversion pair: %w", err)
 		}
+		key := jen.Id(field.FieldName)
 		if field.Kind != SimpleField {
 			subConversion := c.subConversion(field, srcField)
 			cm := subConversion.method()
-			values[jen.Id(field.Name)] = jen.Id(cm).Call(
-				jen.Id(c.Source.Name).Dot(srcField.Name),
+			values[key] = jen.Id(cm).Call(
+				jen.Id(c.Source.Name).Dot(srcField.FieldName),
 			)
 			continue
 		}
-		conversion, err = generateAssignment(field, c.Source, srcField.NamedType)
+		conversion, err = generateAssignment(&field.DataType, c.Source, srcField.NamedType)
 		if err != nil {
 			return nil, fmt.Errorf("failed to compute conversion: %w", err)
 		}
-		values[jen.Id(field.Name)] = conversion
+		values[key] = conversion
 	}
 	return values, nil
 }
 
-func findSourceField(candidates []*DataType, target *DataType) ([]*DataType, *DataType, error) {
-	prefix := []*DataType{}
+func findSourceField(candidates []*DataField, target *DataField) ([]*DataField, *DataField, error) {
+	prefix := []*DataField{}
 	for i, candidate := range candidates {
-		if strings.EqualFold(target.Name, candidate.Name) && target.assignableFrom(candidate.NamedType) {
+		if strings.EqualFold(target.FieldName, candidate.FieldName) && target.assignableFrom(candidate.NamedType) {
 			remaining := append(prefix, candidates[i+1:]...)
 			if reflect.DeepEqual(remaining, candidates) {
 				panic(fmt.Sprintf("remaining cannot match candidates, source %v has not been extracted from %v",
