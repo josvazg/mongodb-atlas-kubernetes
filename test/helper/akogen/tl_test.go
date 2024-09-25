@@ -5,12 +5,15 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen"
+	"github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen/lib"
+	"github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen/sample"
 )
 
 const (
@@ -116,40 +119,40 @@ func fullSample(packageName string) *akogen.TranslationLayer {
 				ExternalName: "Atlas",
 				External: akogen.NewStruct(
 					akogen.NewNamedType("apiRes", "*github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen/lib.Resource"),
-					akogen.NewSimpleField("Id", "string"),
-					akogen.NewSimpleField("SelectedOption", "*string"),
-					akogen.NewSimpleField("Enabled", "*bool"),
-					akogen.NewSimpleField("Status", "*string"),
 					akogen.NewStructField(
 						"ComplexSubtype",
-						akogen.NewNamedType("apiCst", "github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen/lib.ComplexSubtype"),
+						akogen.NewNamedType("libCs", "github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen/lib.ComplexSubtype"),
 						akogen.NewSimpleField("Name", "string"),
 						akogen.NewSimpleField("Subtype", "string"),
 					),
+					akogen.NewSimpleField("Enabled", "*bool"),
+					akogen.NewSimpleField("Id", "string"),
 					akogen.NewStructField(
 						"OptionalRef",
-						akogen.NewNamedType("apiOr", "*github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen/lib.OptionalRef"),
+						akogen.NewNamedType("libOr", "*github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen/lib.OptionalRef"),
 						akogen.NewSimpleField("Ref", "string"),
 					),
+					akogen.NewSimpleField("SelectedOption", "*string"),
+					akogen.NewSimpleField("Status", "*string"),
 				),
 				ExternalAPI: akogen.NewNamedType("api", "API"),
 				Internal: akogen.NewStruct(
 					akogen.NewNamedType("res", "*Resource"),
-					akogen.NewSimpleField("ID", "string"),
-					akogen.NewSimpleField("SelectedOption", "OptionType").WithPrimitive("string"),
-					akogen.NewSimpleField("Enabled", "bool"),
-					akogen.NewSimpleField("Status", "string"),
 					akogen.NewStructField(
 						"ComplexSubtype",
-						akogen.NewNamedType("cst", "ComplexSubtype"),
+						akogen.NewNamedType("cs", "ComplexSubtype"),
 						akogen.NewSimpleField("Name", "string"),
 						akogen.NewSimpleField("Subtype", "Subtype").WithPrimitive("string"),
 					),
+					akogen.NewSimpleField("Enabled", "bool"),
+					akogen.NewSimpleField("ID", "string"),
 					akogen.NewStructField(
 						"OptionalRef",
 						akogen.NewNamedType("or", "*OptionalRef"),
 						akogen.NewSimpleField("Ref", "string"),
 					),
+					akogen.NewSimpleField("SelectedOption", "OptionType").WithPrimitive("string"),
+					akogen.NewSimpleField("Status", "string"),
 				),
 				Wrapper: akogen.NewNamedType("w", "wrapper"),
 			},
@@ -211,6 +214,37 @@ func fullSample(packageName string) *akogen.TranslationLayer {
 			},
 		},
 	}
+}
+
+func TestIt(t *testing.T) {
+	want := akogen.NewSimpleField("SelectedOption", "OptionType").WithPrimitive("string")
+	var st sample.OptionType
+	ty := reflect.TypeOf(st)
+	result := akogen.NewSimpleFieldFromReflect("SelectedOption", ty)
+	result.DataType = *result.DataType.StripLocalPackage(ty.PkgPath())
+	assert.Equal(t, want, result)
+}
+
+func TestNewTranslationLayer(t *testing.T) {
+	packageName := "sample"
+	tl := akogen.NewTranslationLayer(&akogen.TranslationLayerSpec{
+		PackageName:  packageName,
+		Name:         "Resource",
+		APIName:      "API",
+		APIImpl:      &lib.DummyAPI{},
+		ExternalType: &lib.Resource{},
+		InternalType: &sample.Resource{},
+	}, testAtlasDefaults())
+	want := fullSample(packageName)
+	assert.Equal(t, want, tl)
+}
+
+func testAtlasDefaults() akogen.TranslationLayerSettings {
+	defaults := akogen.DefaultSettings
+	defaults.ExternalName = "Atlas"
+	defaults.ExternalField = "apiRes"
+	defaults.WrapperType = "wrapper"
+	return defaults
 }
 
 func TestGenerateTranslationLayer(t *testing.T) {

@@ -2,12 +2,20 @@ package akogen
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/dave/jennifer/jen"
 )
 
 type Type string
+
+func NewTypeFromReflect(t reflect.Type) Type {
+	if t.PkgPath() != "" {
+		return Type(fmt.Sprintf("%s.%s", t.PkgPath(), t.Name()))
+	}
+	return Type(t.Name())
+}
 
 func (t Type) String() string {
 	return string(t)
@@ -22,6 +30,11 @@ func (t Type) dereference() Type {
 		return Type(t.String()[1:])
 	}
 	return t
+}
+
+func (t Type) StripPackage(pkgPath string) Type {
+	stripped := strings.Replace(string(t), fmt.Sprintf("%s.", pkgPath), "", 1)
+	return Type(stripped)
 }
 
 func (t Type) base() string {
