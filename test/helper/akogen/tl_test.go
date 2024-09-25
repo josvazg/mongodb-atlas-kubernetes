@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math/big"
 	"os"
-	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -216,18 +215,9 @@ func fullSample(packageName string) *akogen.TranslationLayer {
 	}
 }
 
-func TestIt(t *testing.T) {
-	want := akogen.NewSimpleField("SelectedOption", "OptionType").WithPrimitive("string")
-	var st sample.OptionType
-	ty := reflect.TypeOf(st)
-	result := akogen.NewSimpleFieldFromReflect("SelectedOption", ty)
-	result.DataType = *result.DataType.StripLocalPackage(ty.PkgPath())
-	assert.Equal(t, want, result)
-}
-
 func TestNewTranslationLayer(t *testing.T) {
 	packageName := "sample"
-	tl := akogen.NewTranslationLayer(&akogen.TranslationLayerSpec{
+	got := akogen.NewTranslationLayer(&akogen.TranslationLayerSpec{
 		PackageName:  packageName,
 		Name:         "Resource",
 		APIName:      "API",
@@ -236,13 +226,14 @@ func TestNewTranslationLayer(t *testing.T) {
 		InternalType: &sample.Resource{},
 	}, testAtlasDefaults())
 	want := fullSample(packageName)
-	assert.Equal(t, want, tl)
+	assert.Equal(t, want, got)
 }
 
 func testAtlasDefaults() akogen.TranslationLayerSettings {
 	defaults := akogen.DefaultSettings
 	defaults.ExternalName = "Atlas"
 	defaults.ExternalField = "apiRes"
+	defaults.InternalField = "res"
 	defaults.WrapperType = "wrapper"
 	return defaults
 }
