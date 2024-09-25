@@ -165,8 +165,6 @@ func newStructFieldFromReflect(name string, t reflect.Type) *DataField {
 	}
 }
 
-var NewSimpleFieldFromReflect = newSimpleFieldFromReflect
-
 func newSimpleFieldFromReflect(name string, t reflect.Type) *DataField {
 	return &DataField{
 		DataType:  DataType{
