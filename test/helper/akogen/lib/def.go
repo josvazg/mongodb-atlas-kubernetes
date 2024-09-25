@@ -25,3 +25,18 @@ type API interface {
 	Get(ctx context.Context, id string) (*Resource, error)
 	Create(ctx context.Context, apiRes *Resource) (*Resource, error)
 }
+
+type DummyAPI struct {
+}
+
+func NewAPI() API {
+	return &DummyAPI{}
+}
+
+func (d *DummyAPI) Get(ctx context.Context, id string) (*Resource, error) {
+	panic("unimplemented")
+}
+
+func (d *DummyAPI) Create(ctx context.Context, apiRes *Resource) (*Resource, error) {
+	panic("unimplemented")
+}

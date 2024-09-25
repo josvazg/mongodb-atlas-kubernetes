@@ -2,6 +2,7 @@ package akogen
 
 import (
 	"fmt"
+	"reflect"
 
 	"github.com/dave/jennifer/jen"
 )
@@ -14,6 +15,22 @@ type NamedType struct {
 
 func NewNamedType(name, typeName string) NamedType {
 	return NamedType{Name: name, Type: Type(typeName)}
+}
+
+func NewNamedTypeFromReflect(name string, t reflect.Type) NamedType {
+	var primitive *Type
+	typeName := NewTypeFromReflect(t)
+	if isPrimitive(t) {
+		p := Type(t.Kind().String())
+		if p != typeName {
+			primitive = &p
+		}
+	}
+	return NamedType{
+		Name:      name,
+		Type:      typeName,
+		Primitive: primitive,
+	}
 }
 
 func (nt NamedType) WithPrimitive(primitive Type) NamedType {
