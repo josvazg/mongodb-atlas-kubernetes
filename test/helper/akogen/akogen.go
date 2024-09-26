@@ -1,6 +1,11 @@
 package akogen
 
 import (
+	"fmt"
+	"path/filepath"
+	"strings"
+	"unicode"
+
 	"github.com/dave/jennifer/jen"
 )
 
@@ -48,4 +53,35 @@ func generateReturns(returns NamedTypes) *jen.Statement {
 		list = append(list, jen.Id(ret.Name))
 	}
 	return jen.Return(jen.List(list...))
+}
+
+func shortenName(name string) string {
+	return shorten("", name)
+}
+
+func shorten(base, name string) string {
+	if len(name) == 0 {
+		return ""
+	}
+	filtered := string(name[0])
+	for _, char := range name[1:] {
+		if unicode.IsUpper(char) {
+			filtered += string(unicode.ToLower(char))
+		}
+	}
+	if base != "" {
+		return fmt.Sprintf("%s%s", base, firstToUpper(filtered))
+	}
+	return firstToLower(filtered)
+}
+
+func removeBase(s, pkgPath string) string {
+	if len(s) == 0 {
+		return ""
+	}
+	base := filepath.Base(pkgPath)
+	if strings.HasPrefix(s, base) && len(s) > len(base) {
+		return firstToLower(strings.Replace(s, base, "", 1))
+	}
+	return s
 }
