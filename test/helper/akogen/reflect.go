@@ -53,18 +53,26 @@ func NewTranslationLayer(tls *TranslationLayerSpec, settings TranslationLayerSet
 	}
 	importAlias := importAlias(settings.ImportAlias, pkgPath)
 	wrapperTypeName := wrapper(settings.WrapperType, tls.Name)
+	external := NewDataTypeFromReflect(reflect.TypeOf(tls.ExternalType))
+	internal := NewDataTypeFromReflect(reflect.TypeOf(tls.InternalType)).StripLocalPackage(localPkgPath)
 	return &TranslationLayer{
 		PackageName: tls.PackageName,
 		WrappedType: &WrappedType{
 			Translation: Translation{
 				Lib:          Import{Alias: importAlias, Path: pkgPath},
 				ExternalName: settings.ExternalName,
-				External:     NewDataTypeFromReflect(reflect.TypeOf(tls.ExternalType)),
+				External:     external,
 				ExternalAPI:  NewNamedType(shortenName(tls.API.Name()), tls.API.Name()),
-				Internal:     NewDataTypeFromReflect(reflect.TypeOf(tls.InternalType)).StripLocalPackage(localPkgPath),
+				Internal:     internal,
 				Wrapper:      NewNamedType(shortenName(wrapperTypeName), wrapperTypeName),
 			},
-			WrapperMethods: []WrapperMethod{},
+			WrapperMethods: NewWrapperMethodsFromReflect(
+				settings.ExternalName,
+				NewNamedType(tls.WrapperName, settings.WrapperType),
+				tls.API,
+				external.NamedType,
+				internal.NamedType,
+			),
 		},
 	}
 }
@@ -118,6 +126,47 @@ func NewDataTypeFromReflect(t reflect.Type) *DataType {
 		return dt
 	}
 	return nil
+}
+
+func NewWrapperMethodsFromReflect(externalName string, wrapper NamedType, apiType reflect.Type, external, internal NamedType) []WrapperMethod {
+	wms := make([]WrapperMethod, 0, apiType.NumMethod())
+	for i := 0; i < apiType.NumMethod(); i++ {
+		m := apiType.Method(i)
+		wms = append(wms, WrapperMethod{
+			MethodSignature: MethodSignature{
+				Receiver: NewNamedTypeFromReflect(shortenTypeName(m.Type), m.Type),
+				FunctionSignature: FunctionSignature{
+					Name:    m.Name,
+					Args:    argsFromReflect(m.Type).replaceType(external, internal),
+					Returns: returnsFromReflect(m.Type).replaceType(external, internal),
+				},
+			},
+			WrappedCall: FunctionSignature{
+				Name:    m.Name,
+				Args:    argsFromReflect(m.Type),
+				Returns: returnsFromReflect(m.Type),
+			},
+		})
+	}
+	return wms
+}
+
+func argsFromReflect(t reflect.Type) NamedTypes {
+	args := make([]NamedType, 0, t.NumIn())
+	for i := 0; i < t.NumIn(); i++ {
+		argType := t.In(i)
+		args = append(args, NewNamedTypeFromReflect(shortenTypeName(argType), argType))
+	}
+	return args
+}
+
+func returnsFromReflect(t reflect.Type) NamedTypes {
+	returns := make([]NamedType, 0, t.NumOut())
+	for i := 0; i < t.NumOut(); i++ {
+		returnType := t.Out(i)
+		returns = append(returns, NewNamedTypeFromReflect(shortenTypeName(returnType), returnType))
+	}
+	return returns
 }
 
 func newStructFromReflect(name string, st reflect.Type) *DataType {
