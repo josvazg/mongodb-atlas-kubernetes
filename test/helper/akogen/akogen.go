@@ -24,6 +24,11 @@ type MethodSignature struct {
 	Receiver NamedType
 }
 
+var knownShortNames = map[string]string{
+	"context.Context": "ctx",
+	"error":           "err",
+}
+
 func generateFunctionSignature(f *jen.File, fns *FunctionSignature, blockStatements ...jen.Code) *jen.Statement {
 	return f.Func().Id(fns.Name).Params(fns.Args.generateArgsSignature()...).
 		Params(fns.Returns.generateReturnsSignature()...).Block(blockStatements...)
@@ -56,12 +61,17 @@ func generateReturns(returns NamedTypes) *jen.Statement {
 }
 
 func shortenName(name string) string {
-	return shorten("", name)
+	return shorten(".", name)
 }
 
 func shorten(base, name string) string {
 	if len(name) == 0 {
 		return ""
+	}
+	fullName := fullName(base, name)
+	shortName, ok := knownShortNames[fullName]
+	if ok {
+		return shortName
 	}
 	filtered := string(name[0])
 	for _, char := range name[1:] {
@@ -69,10 +79,19 @@ func shorten(base, name string) string {
 			filtered += string(unicode.ToLower(char))
 		}
 	}
-	if base != "" {
-		return fmt.Sprintf("%s%s", base, firstToUpper(filtered))
+	if base != "." {
+		r := fmt.Sprintf("%s%s", base, firstToUpper(filtered))
+		return r
 	}
-	return firstToLower(filtered)
+	r := firstToLower(filtered)
+	return r
+}
+
+func fullName(base, name string) string {
+	if base == "." {
+		return name
+	}
+	return fmt.Sprintf("%s.%s", base, name)
 }
 
 func removeBase(s, pkgPath string) string {

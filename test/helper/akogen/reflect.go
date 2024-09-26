@@ -29,7 +29,6 @@ var DefaultSettings = TranslationLayerSettings{
 type TranslationLayerSpec struct {
 	PackageName  string
 	Name         string
-	WrapperName  string
 	API          reflect.Type
 	ExternalType any
 	InternalType any
@@ -68,7 +67,7 @@ func NewTranslationLayer(tls *TranslationLayerSpec, settings TranslationLayerSet
 			},
 			WrapperMethods: NewWrapperMethodsFromReflect(
 				settings.ExternalName,
-				NewNamedType(tls.WrapperName, settings.WrapperType),
+				NewNamedType(shortenName(settings.WrapperType), settings.WrapperType).pointer(),
 				tls.API,
 				external.NamedType,
 				internal.NamedType,
@@ -134,7 +133,7 @@ func NewWrapperMethodsFromReflect(externalName string, wrapper NamedType, apiTyp
 		m := apiType.Method(i)
 		wms = append(wms, WrapperMethod{
 			MethodSignature: MethodSignature{
-				Receiver: NewNamedTypeFromReflect(shortenTypeName(m.Type), m.Type),
+				Receiver: wrapper,
 				FunctionSignature: FunctionSignature{
 					Name:    m.Name,
 					Args:    argsFromReflect(m.Type).replaceType(external, internal),
@@ -151,20 +150,34 @@ func NewWrapperMethodsFromReflect(externalName string, wrapper NamedType, apiTyp
 	return wms
 }
 
+var ArgsFromReflect = argsFromReflect
+
 func argsFromReflect(t reflect.Type) NamedTypes {
 	args := make([]NamedType, 0, t.NumIn())
 	for i := 0; i < t.NumIn(); i++ {
 		argType := t.In(i)
-		args = append(args, NewNamedTypeFromReflect(shortenTypeName(argType), argType))
+		nt := NewNamedTypeFromReflect(shortenTypeName(argType), argType)
+		if argType.Kind() == reflect.Pointer {
+			argType = argType.Elem()
+			nt = NewNamedTypeFromReflect(shortenTypeName(argType), argType).pointer()
+		}
+		args = append(args, nt)
 	}
 	return args
 }
+
+var ReturnsFromReflect = returnsFromReflect
 
 func returnsFromReflect(t reflect.Type) NamedTypes {
 	returns := make([]NamedType, 0, t.NumOut())
 	for i := 0; i < t.NumOut(); i++ {
 		returnType := t.Out(i)
-		returns = append(returns, NewNamedTypeFromReflect(shortenTypeName(returnType), returnType))
+		nt := NewNamedTypeFromReflect(shortenTypeName(returnType), returnType)
+		if returnType.Kind() == reflect.Pointer {
+			returnType = returnType.Elem()
+			nt = NewNamedTypeFromReflect(shortenTypeName(returnType), returnType).pointer()
+		}
+		returns = append(returns, nt)
 	}
 	return returns
 }
@@ -241,6 +254,8 @@ func isPrimitive(t reflect.Type) bool {
 		return false
 	}
 }
+
+var ShortenTypeName = shortenTypeName
 
 func shortenTypeName(t reflect.Type) string {
 	base := ""
