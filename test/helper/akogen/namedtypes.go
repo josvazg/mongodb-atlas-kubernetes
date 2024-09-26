@@ -89,6 +89,20 @@ func (nt NamedType) generateNameType() *jen.Statement {
 
 type NamedTypes []NamedType
 
+func (nts NamedTypes) replaceType(original, replacement NamedType) NamedTypes {
+	if len(nts) < 1 {
+		panic("expected one or more named types")
+	}
+	list := make(NamedTypes, 0, len(nts))
+	for _, nt := range nts {
+		if nt == original {
+			nt = replacement
+		}
+		list = append(list, nt)
+	}
+	return list
+}
+
 func (nts NamedTypes) generateArgsSignature() []jen.Code {
 	list := make([]jen.Code, 0, len(nts))
 	for _, nt := range nts {
