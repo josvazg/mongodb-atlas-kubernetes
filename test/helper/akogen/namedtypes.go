@@ -2,7 +2,6 @@ package akogen
 
 import (
 	"fmt"
-	"reflect"
 
 	"github.com/dave/jennifer/jen"
 )
@@ -17,24 +16,14 @@ func NewNamedType(name, typeName string) NamedType {
 	return NamedType{Name: name, Type: Type(typeName)}
 }
 
-func NewNamedTypeFromReflect(name string, t reflect.Type) NamedType {
-	var primitive *Type
-	typeName := NewTypeFromReflect(t)
-	if isPrimitive(t) {
-		p := Type(t.Kind().String())
-		if p != typeName {
-			primitive = &p
-		}
-	}
-	return NamedType{
-		Name:      name,
-		Type:      typeName,
-		Primitive: primitive,
-	}
-}
-
 func (nt NamedType) WithPrimitive(primitive Type) NamedType {
 	nt.Primitive = &primitive
+	return nt
+}
+
+func (nt NamedType) StripPackageAndName(pkgPath string) NamedType {
+	nt.Type = nt.Type.StripPackage(pkgPath)
+	nt.Name = removeBase(nt.Name, pkgPath)
 	return nt
 }
 

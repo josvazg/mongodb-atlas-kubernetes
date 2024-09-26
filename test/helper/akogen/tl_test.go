@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -117,7 +118,7 @@ func fullSample(packageName string) *akogen.TranslationLayer {
 				},
 				ExternalName: "Atlas",
 				External: akogen.NewStruct(
-					akogen.NewNamedType("apiRes", "*github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen/lib.Resource"),
+					akogen.NewNamedType("libR", "*github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen/lib.Resource"),
 					akogen.NewStructField(
 						"ComplexSubtype",
 						akogen.NewNamedType("libCs", "github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen/lib.ComplexSubtype"),
@@ -136,7 +137,7 @@ func fullSample(packageName string) *akogen.TranslationLayer {
 				),
 				ExternalAPI: akogen.NewNamedType("api", "API"),
 				Internal: akogen.NewStruct(
-					akogen.NewNamedType("res", "*Resource"),
+					akogen.NewNamedType("r", "*Resource"),
 					akogen.NewStructField(
 						"ComplexSubtype",
 						akogen.NewNamedType("cs", "ComplexSubtype"),
@@ -217,25 +218,19 @@ func fullSample(packageName string) *akogen.TranslationLayer {
 
 func TestNewTranslationLayer(t *testing.T) {
 	packageName := "sample"
+	defaults := akogen.DefaultSettings
+	defaults.ExternalName = "Atlas"
+	defaults.WrapperType = "wrapper"
+
 	got := akogen.NewTranslationLayer(&akogen.TranslationLayerSpec{
 		PackageName:  packageName,
 		Name:         "Resource",
-		APIName:      "API",
-		APIImpl:      &lib.DummyAPI{},
+		API:          reflect.TypeOf((*lib.API)(nil)).Elem(),
 		ExternalType: &lib.Resource{},
 		InternalType: &sample.Resource{},
-	}, testAtlasDefaults())
+	}, defaults)
 	want := fullSample(packageName)
 	assert.Equal(t, want, got)
-}
-
-func testAtlasDefaults() akogen.TranslationLayerSettings {
-	defaults := akogen.DefaultSettings
-	defaults.ExternalName = "Atlas"
-	defaults.ExternalField = "apiRes"
-	defaults.InternalField = "res"
-	defaults.WrapperType = "wrapper"
-	return defaults
 }
 
 func TestGenerateTranslationLayer(t *testing.T) {
