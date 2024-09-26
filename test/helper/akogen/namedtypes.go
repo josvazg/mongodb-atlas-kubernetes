@@ -89,6 +89,10 @@ func (nt NamedType) generateNameType() *jen.Statement {
 
 type NamedTypes []NamedType
 
+func (nts NamedTypes) ReplaceType(original, replacement NamedType) NamedTypes {
+	return nts.replaceType(original, replacement)
+}
+
 func (nts NamedTypes) replaceType(original, replacement NamedType) NamedTypes {
 	if len(nts) < 1 {
 		panic("expected one or more named types")

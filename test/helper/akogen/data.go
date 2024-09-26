@@ -34,13 +34,13 @@ func (dt *DataType) String() string {
 	return fmt.Sprintf("[%s Kind=%v %d Fields]", dt.NamedType, dt.Kind, len(dt.Fields))
 }
 
-func (df *DataType) StripLocalPackage(pkgPath string) *DataType {
-	df.NamedType = df.NamedType.StripPackageAndName(pkgPath)
-	for _, field := range df.Fields {
+func (dt *DataType) StripLocalPackage(pkgPath string) *DataType {
+	dt.NamedType = dt.NamedType.StripPackageAndName(pkgPath)
+	for _, field := range dt.Fields {
 		field.Name = removeBase(field.Name, pkgPath)
 		field.StripLocalPackage(pkgPath)
 	}
-	return df
+	return dt
 }
 
 type DataField struct {
