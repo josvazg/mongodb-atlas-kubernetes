@@ -128,7 +128,9 @@ build-licenses.csv: go.mod ## Track licenses in a CSV file
 	@echo "========================================"
 	GOOS=linux GOARCH=amd64 go mod download
 	# https://github.com/google/go-licenses/issues/244
-	GOTOOLCHAIN=local GOOS=linux GOARCH=amd64 $(GO_LICENSES) csv --include_tests $(BASE_GO_PACKAGE)/... > licenses.csv
+	GOTOOLCHAIN=local GOOS=linux GOARCH=amd64 $(GO_LICENSES) csv --include_tests \
+	--ignore github.com/mongodb/mongodb-atlas-kubernetes/v2 \
+	$(BASE_GO_PACKAGE)/... > licenses.csv
 	echo $(GOMOD_SHA) > $(LICENSES_GOMOD_SHA_FILE)
 
 .PHONY: recompute-licenses
@@ -147,6 +149,7 @@ check-licenses: licenses-up-to-date ## Check licenses are compliant with our res
 	@echo "============================================"
 	# https://github.com/google/go-licenses/issues/244
 	GOTOOLCHAIN=local GOOS=linux GOARCH=amd64 $(GO_LICENSES) check --include_tests \
+	--ignore github.com/mongodb/mongodb-atlas-kubernetes/v2 \
 	--disallowed_types $(DISALLOWED_LICENSES) $(BASE_GO_PACKAGE)/...
 	@echo "--------------------"
 	@echo "Licenses check: PASS"
