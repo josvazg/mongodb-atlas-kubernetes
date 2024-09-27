@@ -3,6 +3,9 @@ package akogen_test
 import (
 	"crypto/rand"
 	"fmt"
+	"go/parser"
+	"go/token"
+	"log"
 	"math/big"
 	"os"
 	"reflect"
@@ -216,20 +219,33 @@ func fullSample(packageName string) *akogen.TranslationLayer {
 	}
 }
 
-func TestNewTranslationLayer(t *testing.T) {
-	packageName := "sample"
+func fullSampleFromReflect(packageName string) *akogen.TranslationLayer {
 	defaults := akogen.DefaultSettings
 	defaults.ExternalName = "Atlas"
 	defaults.WrapperType = "wrapper"
 
-	got := akogen.NewTranslationLayer(&akogen.TranslationLayerSpec{
+	return akogen.NewTranslationLayer(&akogen.TranslationLayerSpec{
 		PackageName:  packageName,
 		Name:         "Resource",
 		API:          reflect.TypeOf((*lib.API)(nil)).Elem(),
 		ExternalType: &lib.Resource{},
 		InternalType: &sample.Resource{},
 	}, defaults)
+}
+
+func TestParse(t *testing.T) {
+	fst := token.NewFileSet()
+	mode := parser.ParseComments
+	af, err := parser.ParseFile(fst, "sample/def.go", nil, mode)
+	require.NoError(t, err)
+	require.NotNil(t, af)
+	log.Printf("%#+v", af)
+}
+
+func TestNewTranslationLayer(t *testing.T) {
+	packageName := "sample"
 	want := fullSample(packageName)
+	got := fullSampleFromReflect(packageName)
 	assert.Equal(t, want, got)
 }
 
@@ -260,6 +276,11 @@ func TestGenerateTranslationLayer(t *testing.T) {
 		{
 			title: "specifying a full sample wrapper generates the expected wrapper code",
 			spec:  fullSample(packageName),
+			want:  fmt.Sprintf(wrappedCallSample, packageName),
+		},
+		{
+			title: "specifying a full sample wrapper from code and reflection generates the expected wrapper code",
+			spec:  fullSampleFromReflect(packageName),
 			want:  fmt.Sprintf(wrappedCallSample, packageName),
 		},
 	} {
