@@ -1,13 +1,14 @@
 // Sample internal types to define manually before code generation
 package sample
 
-// Resource is teh internal type
-// +akogen:InternalType
-// +akogen:ExternalSystem=Atlas
-// +akogen:ExternalPackage=github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen/lib
-// +akogen:ExternalType=lib.Resource
-// +akogen:ExternalInterface=lib.API
+// +akogen:ExternalSystem:Atlas
+// +akogen:ExternalPackage:alias=lib,path="github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen/lib"
+// +akogen:ExternalType:alias=res,type=*lib.Resource
+// +akogen:ExternalAPI:alias=api,type=lib.API
 // +akogen:WrapperType:name="w",type="Wrapper"
+
+// Resource is the internal type
+// +akogen:InternalType:alias=res,pointer=true
 type Resource struct {
 	ComplexSubtype ComplexSubtype
 	Enabled        bool
