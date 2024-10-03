@@ -9,6 +9,7 @@ import (
 	"math/big"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -240,6 +241,16 @@ func TestParse(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, af)
 	log.Printf("%#+v", af)
+	annotations := 0
+	for _, cg := range af.Comments {
+		for _, c := range cg.List {
+			log.Printf("Comment: %q", c.Text)
+			if strings.Contains(c.Text, "+akogen:") {
+				annotations += 1
+			}
+		}
+	}
+	assert.Greater(t, annotations, 0)
 }
 
 func TestNewTranslationLayer(t *testing.T) {
