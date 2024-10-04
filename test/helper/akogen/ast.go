@@ -10,6 +10,13 @@ import (
 	"strings"
 )
 
+const (
+	varKey     = "var"
+	typeKey    = "type"
+	pathKey    = "path"
+	pointerKey = "pointer"
+)
+
 func NewTranslationLayerFromSourceFile(src string) (*TranslationLayer, error) {
 	fst := token.NewFileSet()
 	f, err := parser.ParseFile(fst, src, nil, parser.ParseComments)
@@ -76,22 +83,28 @@ func (tlp *translatorLayerParser) parseComment(c *ast.Comment) error {
 		if err != nil {
 			return fmt.Errorf("failed to parse ExternalPackage annotation: %w", err)
 		}
-		tlp.wp.Lib.Alias = values["alias"]
-		tlp.wp.Lib.Path = values["path"]
+		tlp.wp.Lib.Alias = values[varKey]
+		tlp.wp.Lib.Path = values[pathKey]
 	case strings.Contains(text, "+akogen:ExternalType:"):
 		values, err := parseAnnotationCSVValue(text)
 		if err != nil {
 			return fmt.Errorf("failed to parse ExternalType annotation: %w", err)
 		}
-		tlp.externalAlias = values["alias"]
-		tlp.externalType = values["type"]
+		tlp.externalAlias = values[varKey]
+		tlp.externalType = values[typeKey]
 	case strings.Contains(text, "+akogen:ExternalAPI:"):
 		values, err := parseAnnotationCSVValue(text)
 		if err != nil {
 			return fmt.Errorf("failed to parse ExternalAPI annotation: %w", err)
 		}
-		tlp.externalAPIAlias = values["alias"]
-		tlp.externalAPIType = values["type"]
+		tlp.externalAPIAlias = values[varKey]
+		tlp.externalAPIType = values[typeKey]
+	case strings.Contains(text, "+akogen:WrapperType:"):
+		values, err := parseAnnotationCSVValue(text)
+		if err != nil {
+			return fmt.Errorf("failed to parse WrapperType annotation: %w", err)
+		}
+		tlp.wp.Wrapper = NewNamedType(values[varKey], values[typeKey])
 	}
 	return nil
 }
@@ -118,12 +131,12 @@ func (tlp *translatorLayerParser) visit(node ast.Node) bool {
 				return false
 			}
 			var ok bool
-			tlp.internalAlias, ok = values["alias"]
+			tlp.internalAlias, ok = values[varKey]
 			if !ok {
-				tlp.err = fmt.Errorf("missing alias for InternalType")
+				tlp.err = fmt.Errorf("missing var for InternalType")
 				return false
 			}
-			tlp.internalPointer = isTrue(values["pointer"])
+			tlp.internalPointer = isTrue(values[pointerKey])
 			return true
 		}
 		if err := tlp.parseComment(c); err != nil {

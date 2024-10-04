@@ -318,6 +318,7 @@ func fullASTSample() *akogen.TranslationLayer {
 				Internal: akogen.NewStruct(
 					akogen.NewNamedType("res", "*Resource"),
 				),
+				Wrapper: akogen.NewNamedType("w", "Wrapper"),
 			},
 		},
 	}

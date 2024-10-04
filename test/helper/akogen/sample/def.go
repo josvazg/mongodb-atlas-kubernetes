@@ -2,13 +2,13 @@
 package sample
 
 // +akogen:ExternalSystem:Atlas
-// +akogen:ExternalPackage:alias=lib,path="github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen/lib"
-// +akogen:ExternalType:alias=res,type=*lib.Resource
-// +akogen:ExternalAPI:alias=api,type=lib.API
-// +akogen:WrapperType:name="w",type="Wrapper"
+// +akogen:ExternalPackage:var=lib,path="github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen/lib"
+// +akogen:ExternalType:var=res,type=*lib.Resource
+// +akogen:ExternalAPI:var=api,type=lib.API
+// +akogen:WrapperType:var="w",type="Wrapper"
 
 // Resource is the internal type
-// +akogen:InternalType:alias=res,pointer=true
+// +akogen:InternalType:var=res,pointer=true
 type Resource struct {
 	ComplexSubtype ComplexSubtype
 	Enabled        bool
