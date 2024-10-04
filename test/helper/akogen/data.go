@@ -6,6 +6,10 @@ import (
 
 type DataKind int
 
+const (
+	UnknownName = "?"
+)
+
 func (dk DataKind) String() string {
 	switch dk {
 	case SimpleField:
@@ -28,6 +32,13 @@ type DataType struct {
 	NamedType
 	Kind   DataKind
 	Fields []*DataField
+}
+
+func NewSimpleDataType(name, typeName string) *DataType {
+	return &DataType{
+		NamedType: NewNamedType(name, typeName),
+		Kind:      SimpleField,
+	}
 }
 
 func (dt *DataType) String() string {
@@ -59,13 +70,15 @@ func (df *DataField) assignableFrom(other *DataField) bool {
 }
 
 func NewSimpleField(name, typeName string) *DataField {
-	return &DataField{
-		FieldName: name,
-		DataType: DataType{
-			NamedType: NewNamedType(name, typeName),
-			Kind:      SimpleField,
-		},
+	return NewFieldFromData(name, NewSimpleDataType(name, typeName))
+}
+
+func NewFieldFromData(name string, dt *DataType) *DataField {
+	dataCopy := *dt
+	if dataCopy.Name == UnknownName {
+		dataCopy.Name = name
 	}
+	return &DataField{FieldName: name, DataType: dataCopy}
 }
 
 func (df *DataField) WithPrimitive(primitive Type) *DataField {

@@ -17,6 +17,15 @@ const (
 	pointerKey = "pointer"
 )
 
+var primitiveTypeNames = []string{
+	"string",
+	"bool",
+	"int", "int8", "int16", "int32", "int64",
+	"unit", "unit16", "uint32", "uint64", "uint64", "uintptr",
+	"float32", "float64",
+	"complex64", "complex128",
+}
+
 func NewTranslationLayerFromSourceFile(src string) (*TranslationLayer, error) {
 	fst := token.NewFileSet()
 	f, err := parser.ParseFile(fst, src, nil, parser.ParseComments)
@@ -29,7 +38,7 @@ func NewTranslationLayerFromSourceFile(src string) (*TranslationLayer, error) {
 		return nil, fmt.Errorf("failed to type check the package: %w", err)
 	}
 
-	tlp := translatorLayerParser{packageName: pkg.Name()}
+	tlp := translatorLayerParser{packageName: pkg.Name(), parsedTypes: make(map[Type]*DataType)}
 
 	err = tlp.parseFile(f)
 	if err != nil {
@@ -47,6 +56,8 @@ type translatorLayerParser struct {
 	externalAPIType  string
 	internalAlias    string
 	internalPointer  bool
+	parsedTypes      map[Type]*DataType
+	currentType      Type
 	wp               WrappedType
 	err              error
 }
@@ -59,7 +70,17 @@ func (tlp *translatorLayerParser) parseFile(f *ast.File) error {
 		}
 	}
 	ast.Walk(tlp, f)
-	return tlp.err
+	if tlp.err != nil {
+		return fmt.Errorf("failed to parse the source types: %w", tlp.err)
+	}
+	expandComplexFields(tlp.wp.Internal, tlp.parsedTypes)
+	if err := tlp.setExternal(); err != nil {
+		return fmt.Errorf("failed to compute external type: %w", err)
+	}
+	if err := tlp.setExternalAPI(); err != nil {
+		return fmt.Errorf("failed to compute external API: %w", err)
+	}
+	return nil
 }
 
 func (tlp *translatorLayerParser) Visit(node ast.Node) ast.Visitor {
@@ -70,41 +91,64 @@ func (tlp *translatorLayerParser) Visit(node ast.Node) ast.Visitor {
 }
 
 func (tlp *translatorLayerParser) parseComment(c *ast.Comment) error {
-	text := c.Text
+	if strings.Contains(c.Text, "+akogen:") {
+		annotation, err := parseAnnotationValue(c.Text)
+		if err != nil {
+			fmt.Errorf("failed to extract annotation value: %w", err)
+		}
+		return tlp.parseAnnotation(annotation)
+	}
+	return nil
+}
+
+func (tlp *translatorLayerParser) parseAnnotation(annotation string) error {
 	switch {
-	case strings.Contains(text, "+akogen:ExternalSystem:"):
-		value, err := parseAnnotationValue(text)
+	case strings.Contains(annotation, "ExternalSystem:"):
+		value, err := parseAnnotationValue(annotation)
 		if err != nil {
 			return fmt.Errorf("failed to parse ExternalSystem annotation: %w", err)
 		}
 		tlp.wp.ExternalName = value
-	case strings.Contains(text, "+akogen:ExternalPackage:"):
-		values, err := parseAnnotationCSVValue(text)
+	case strings.Contains(annotation, "ExternalPackage:"):
+		values, err := parseAnnotationCSVValue(annotation)
 		if err != nil {
 			return fmt.Errorf("failed to parse ExternalPackage annotation: %w", err)
 		}
 		tlp.wp.Lib.Alias = values[varKey]
 		tlp.wp.Lib.Path = values[pathKey]
-	case strings.Contains(text, "+akogen:ExternalType:"):
-		values, err := parseAnnotationCSVValue(text)
+	case strings.Contains(annotation, "ExternalType:"):
+		values, err := parseAnnotationCSVValue(annotation)
 		if err != nil {
 			return fmt.Errorf("failed to parse ExternalType annotation: %w", err)
 		}
 		tlp.externalAlias = values[varKey]
 		tlp.externalType = values[typeKey]
-	case strings.Contains(text, "+akogen:ExternalAPI:"):
-		values, err := parseAnnotationCSVValue(text)
+	case strings.Contains(annotation, "ExternalAPI:"):
+		values, err := parseAnnotationCSVValue(annotation)
 		if err != nil {
 			return fmt.Errorf("failed to parse ExternalAPI annotation: %w", err)
 		}
 		tlp.externalAPIAlias = values[varKey]
 		tlp.externalAPIType = values[typeKey]
-	case strings.Contains(text, "+akogen:WrapperType:"):
-		values, err := parseAnnotationCSVValue(text)
+	case strings.Contains(annotation, "WrapperType:"):
+		values, err := parseAnnotationCSVValue(annotation)
 		if err != nil {
 			return fmt.Errorf("failed to parse WrapperType annotation: %w", err)
 		}
 		tlp.wp.Wrapper = NewNamedType(values[varKey], values[typeKey])
+	case strings.Contains(annotation, "InternalType:"):
+		values, err := parseAnnotationCSVValue(annotation)
+		if err != nil {
+			return fmt.Errorf("failed to parse InternalType annotation")
+		}
+		var ok bool
+		tlp.internalAlias, ok = values[varKey]
+		if !ok {
+			return fmt.Errorf("missing var for InternalType")
+		}
+		tlp.internalPointer = isTrue(values[pointerKey])
+	default:
+		return fmt.Errorf("unsupported annotation %q", annotation)
 	}
 	return nil
 }
@@ -124,59 +168,120 @@ func (tlp *translatorLayerParser) visit(node ast.Node) bool {
 	switch node.(type) {
 	case *ast.Comment:
 		c := node.(*ast.Comment)
-		if strings.Contains(c.Text, "+akogen:InternalType:") {
-			values, err := parseAnnotationCSVValue(c.Text)
-			if err != nil {
-				tlp.err = fmt.Errorf("failed to parse InternalType annotation")
-				return false
-			}
-			var ok bool
-			tlp.internalAlias, ok = values[varKey]
-			if !ok {
-				tlp.err = fmt.Errorf("missing var for InternalType")
-				return false
-			}
-			tlp.internalPointer = isTrue(values[pointerKey])
-			return true
-		}
-		if err := tlp.parseComment(c); err != nil {
-			tlp.err = err
-			return false
-		}
+		err := tlp.parseComment(c)
+		return tlp.visitResult(err)
 	case *ast.TypeSpec:
 		ts := (node).(*ast.TypeSpec)
-		if err := tlp.parseInternalType(ts); err != nil {
-			tlp.err = err
-			return false
-		}
+		err := tlp.parseType(ts)
+		return tlp.visitResult(err)
+	case *ast.StructType:
+		st := (node).(*ast.StructType)
+		err := tlp.parseStructType(st)
+		return tlp.visitResult(err)
+	case *ast.Ident:
+		st := (node).(*ast.Ident)
+		err := tlp.parseIdent(st)
+		return tlp.visitResult(err)
 	default:
-		if tlp.internalAlias != "" {
-			tlp.internalAlias = ""
-		}
 		return true
 	}
+}
 
-	if err := tlp.setExternal(); err != nil {
-		tlp.err = err
-		return false
-	}
-	if err := tlp.setExternalAPI(); err != nil {
+func (tlp *translatorLayerParser) visitResult(err error) bool {
+	if err != nil {
 		tlp.err = err
 		return false
 	}
 	return true
 }
 
-func (tlp *translatorLayerParser) parseInternalType(ts *ast.TypeSpec) error {
-	if tlp.internalAlias == "" {
+func (tlp *translatorLayerParser) parseType(ts *ast.TypeSpec) error {
+	typeName := ts.Name.Name
+	if tlp.internalAlias != "" && tlp.wp.Internal == nil {
+		if tlp.internalPointer {
+			typeName = "*" + typeName
+		}
+		tlp.wp.Internal = NewStruct(NewNamedType(tlp.internalAlias, typeName))
+	} else {
+		tlp.parsedTypes[Type(typeName)] = NewSimpleDataType(UnknownName, typeName)
+	}
+	tlp.currentType = Type(typeName)
+	return nil
+}
+
+func (tlp *translatorLayerParser) parseStructType(st *ast.StructType) error {
+	if st.Fields == nil {
 		return nil
 	}
-	typeName := ts.Name.Name
-	if tlp.internalPointer {
-		typeName = "*" + typeName
+	for _, f := range st.Fields.List {
+		if len(f.Names) < 1 {
+			return fmt.Errorf("failed to parse field of type %v, expected at least one name", f.Type)
+		}
+		name := f.Names[0].String()
+		typeName := parseTypeExpr(f.Type)
+		simpleField := NewSimpleField(name, typeName)
+		var dataType *DataType
+		if tlp.wp.Internal != nil && tlp.currentType == tlp.wp.Internal.Type {
+			dataType = tlp.wp.Internal
+		} else {
+			dataType = tlp.parsedTypes[Type(tlp.currentType)]
+		}
+		dataType.Kind = Struct
+		dataType.Fields = append(dataType.Fields, simpleField)
 	}
-	tlp.wp.Internal = NewStruct(NewNamedType(tlp.internalAlias, typeName))
+	tlp.currentType = ""
 	return nil
+}
+
+func parseTypeExpr(te ast.Expr) string {
+	switch expr := te.(type) {
+	case *ast.Ident:
+		return expr.Name
+	case *ast.StarExpr:
+		return fmt.Sprintf("*%s", parseTypeExpr(expr.X))
+	default:
+		return fmt.Sprintf("{unsupported expression %v of type %T}", te, te)
+	}
+}
+
+func (tlp *translatorLayerParser) parseIdent(id *ast.Ident) error {
+	if id == nil || tlp.currentType == "" || id.Name == string(tlp.currentType) {
+		return nil
+	}
+	dt := tlp.parsedTypes[Type(tlp.currentType)]
+	if isPrimitiveTypeName(id.Name) {
+		dt = dt.WithPrimitive(Type(id.Name))
+	}
+	return nil
+}
+
+func expandComplexFields(dt *DataType, types map[Type]*DataType) error {
+	for i, field := range dt.Fields {
+		if isPrimitiveTypeName(string(field.Type)) {
+			continue
+		}
+		key := field.Type.dereference()
+		fullDecl, ok := types[key]
+		if ok {
+			newField := NewFieldFromData(field.FieldName, fullDecl)
+			newField.Type = field.Type
+			dt.Fields[i] = newField
+			if fullDecl.Kind != SimpleField {
+				expandComplexFields(fullDecl, types)
+			}
+		}
+	}
+	return nil
+}
+
+func keys(m map[Type]*DataType) string {
+	var buf strings.Builder
+	fmt.Fprintf(&buf, "(%d)[ ", len(m))
+	for k, _ := range m {
+		fmt.Fprintf(&buf, "%s ", k)
+	}
+	buf.Write(([]byte)("]"))
+	return buf.String()
 }
 
 func (tlp *translatorLayerParser) setExternal() error {
@@ -223,11 +328,11 @@ func parseAssignment(s string) (string, string, error) {
 }
 
 func parseAnnotationValue(s string) (string, error) {
-	parts := strings.SplitN(s, ":", 3)
-	if len(parts) != 3 {
+	parts := strings.SplitN(s, ":", 2)
+	if len(parts) != 2 {
 		return "", fmt.Errorf("failed to extract annotation value from %s", s)
 	}
-	return parts[2], nil
+	return parts[1], nil
 }
 
 func parseCSVMap(value string) (map[string]string, error) {
@@ -277,6 +382,15 @@ func splitNamespacedType(namespacedTypeName string) (string, string, error) {
 		return "", "", fmt.Errorf("failed to separate namespaced namespace.Typename like from %s", namespacedTypeName)
 	}
 	return parts[0], parts[1], nil
+}
+
+func isPrimitiveTypeName(expr string) bool {
+	for _, primitiveTypeName := range primitiveTypeNames {
+		if strings.Contains(expr, primitiveTypeName) {
+			return true
+		}
+	}
+	return false
 }
 
 func isTrue(s string) bool {

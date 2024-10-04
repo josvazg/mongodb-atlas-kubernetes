@@ -3,14 +3,9 @@ package akogen_test
 import (
 	"crypto/rand"
 	"fmt"
-	"go/ast"
-	"go/parser"
-	"go/token"
-	"log"
 	"math/big"
 	"os"
 	"reflect"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -235,72 +230,6 @@ func fullSampleFromReflect(packageName string) *akogen.TranslationLayer {
 	}, defaults)
 }
 
-func TestParse(t *testing.T) {
-	fst := token.NewFileSet()
-	mode := parser.ParseComments
-	af, err := parser.ParseFile(fst, "sample/def.go", nil, mode)
-	require.NoError(t, err)
-	require.NotNil(t, af)
-
-	annotations := 0
-	followsAnnotation := false
-	ast.Inspect(af, func(node ast.Node) bool {
-		if node == nil {
-			return false
-		}
-		switch node.(type) {
-		case *ast.File:
-			file := (node).(*ast.File)
-			log.Printf("File %q", file.Name)
-		case *ast.Comment:
-			comment := (node).(*ast.Comment)
-			if strings.Contains(comment.Text, "+akogen:") {
-				log.Printf("Annotation comment: %q", comment.Text)
-				annotations += 1
-				followsAnnotation = true
-				return true
-			}
-		case *ast.TypeSpec:
-			ts := (node).(*ast.TypeSpec)
-			if followsAnnotation && ts.Name.IsExported() {
-				log.Printf("Selected type spec: %s %s", ts.Name.Name, ts.Doc.Text())
-				followsAnnotation = true
-				return true
-			}
-		case *ast.Ident:
-			id := (node).(*ast.Ident)
-			if followsAnnotation && id.IsExported() {
-				log.Printf("Selected ident: %s", id.Name)
-				followsAnnotation = true
-				return true
-			}
-		case *ast.StructType:
-			st := (node).(*ast.StructType)
-			if followsAnnotation {
-				log.Printf("Selected struct: %d fields", len(st.Fields.List))
-				for _, field := range st.Fields.List {
-					log.Printf("Selected struct field: %v %v %v", field.Names, field.Tag, field.Type)
-				}
-				followsAnnotation = true
-				return true
-			}
-		default:
-			t := reflect.TypeOf(node)
-			if t != nil {
-				if t.Kind() == reflect.Pointer {
-					t = t.Elem()
-				}
-				log.Printf("%v %q (%s)", t, t.Name(), t.PkgPath())
-			} else {
-				log.Printf("nil type for %#+v", node)
-			}
-		}
-		followsAnnotation = false
-		return true
-	})
-	assert.Greater(t, annotations, 0)
-}
-
 func fullASTSample() *akogen.TranslationLayer {
 	return &akogen.TranslationLayer{
 		PackageName: "sample",
@@ -317,6 +246,21 @@ func fullASTSample() *akogen.TranslationLayer {
 				ExternalAPI: akogen.NewNamedType("api", "github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen/lib.API"),
 				Internal: akogen.NewStruct(
 					akogen.NewNamedType("res", "*Resource"),
+					akogen.NewStructField(
+						"ComplexSubtype",
+						akogen.NewNamedType("ComplexSubtype", "ComplexSubtype"),
+						akogen.NewSimpleField("Name", "string"),
+						akogen.NewSimpleField("Subtype", "Subtype").WithPrimitive("string"),
+					),
+					akogen.NewSimpleField("Enabled", "bool"),
+					akogen.NewSimpleField("ID", "string"),
+					akogen.NewStructField(
+						"OptionalRef",
+						akogen.NewNamedType("OptionalRef", "*OptionalRef"),
+						akogen.NewSimpleField("Ref", "string"),
+					),
+					akogen.NewSimpleField("SelectedOption", "OptionType").WithPrimitive("string"),
+					akogen.NewSimpleField("Status", "string"),
 				),
 				Wrapper: akogen.NewNamedType("w", "Wrapper"),
 			},
