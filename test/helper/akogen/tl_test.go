@@ -242,6 +242,21 @@ func fullASTSample() *akogen.TranslationLayer {
 				ExternalName: "Atlas",
 				External: akogen.NewStruct(
 					akogen.NewNamedType("res", "*github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen/lib.Resource"),
+					akogen.NewStructField(
+						"ComplexSubtype",
+						akogen.NewNamedType("libCs", "github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen/lib.ComplexSubtype"),
+						akogen.NewSimpleField("Name", "string"),
+						akogen.NewSimpleField("Subtype", "string"),
+					),
+					akogen.NewSimpleField("Enabled", "*bool"),
+					akogen.NewSimpleField("Id", "string"),
+					akogen.NewStructField(
+						"OptionalRef",
+						akogen.NewNamedType("libOr", "*github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen/lib.OptionalRef"),
+						akogen.NewSimpleField("Ref", "string"),
+					),
+					akogen.NewSimpleField("SelectedOption", "*string"),
+					akogen.NewSimpleField("Status", "*string"),
 				),
 				ExternalAPI: akogen.NewNamedType("api", "github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen/lib.API"),
 				Internal: akogen.NewStruct(

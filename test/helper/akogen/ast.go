@@ -3,11 +3,16 @@ package akogen
 import (
 	"fmt"
 	"go/ast"
+	"go/importer"
 	"go/parser"
 	"go/token"
 	"go/types"
+	"log"
+	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"golang.org/x/tools/go/packages"
 )
 
 const (
@@ -27,22 +32,16 @@ var primitiveTypeNames = []string{
 }
 
 func NewTranslationLayerFromSourceFile(src string) (*TranslationLayer, error) {
-	fst := token.NewFileSet()
-	f, err := parser.ParseFile(fst, src, nil, parser.ParseComments)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse source file: %w", err)
-	}
+	tlp := translatorLayerParser{parsedTypes: make(map[Type]*DataType)}
 
-	pkg, err := packageFor(fst, f, filepath.Dir(src))
-	if err != nil {
-		return nil, fmt.Errorf("failed to type check the package: %w", err)
-	}
-
-	tlp := translatorLayerParser{packageName: pkg.Name(), parsedTypes: make(map[Type]*DataType)}
-
-	err = tlp.parseFile(f)
+	err := tlp.parseFile(src)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract code generation info: %w", err)
+	}
+
+	err = tlp.parseLibrary()
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse the external library info: %w", err)
 	}
 
 	return tlp.translationLayer(), nil
@@ -62,7 +61,19 @@ type translatorLayerParser struct {
 	err              error
 }
 
-func (tlp *translatorLayerParser) parseFile(f *ast.File) error {
+func (tlp *translatorLayerParser) parseFile(src string) error {
+	fst := token.NewFileSet()
+	f, err := parser.ParseFile(fst, src, nil, parser.ParseComments)
+	if err != nil {
+		return fmt.Errorf("failed to parse source file: %w", err)
+	}
+
+	pkg, err := packageFor(fst, f, filepath.Dir(src))
+	if err != nil {
+		return fmt.Errorf("failed to type check the package: %w", err)
+	}
+	tlp.packageName = pkg.Name()
+
 	// top level comments are not walked otherwise
 	for _, cg := range f.Comments {
 		for _, c := range cg.List {
@@ -80,6 +91,30 @@ func (tlp *translatorLayerParser) parseFile(f *ast.File) error {
 	if err := tlp.setExternalAPI(); err != nil {
 		return fmt.Errorf("failed to compute external API: %w", err)
 	}
+	return nil
+}
+
+func (tlp *translatorLayerParser) parseLibrary() error {
+	libDir, err := getPackageDir(tlp.wp.Lib.Path)
+	if err != nil {
+		return fmt.Errorf("failed to translate the library to a path: %w", err)
+	}
+
+	// fst := token.NewFileSet()
+	// pkgs, err := parser.ParseDir(fst, libDir, nil, parser.ParseComments)
+	// if err != nil {
+	// 	return fmt.Errorf("failed to parse library sources: %w", err)
+	// }
+	cfg := &packages.Config{Mode: packages.NeedTypes | packages.NeedSyntax}
+	pkgs, err := packages.Load(cfg, libDir)
+	if err != nil {
+		return fmt.Errorf("")
+	}
+
+	tlp.parsedTypes = make(map[Type]*DataType)
+	tlp.currentType = ""
+	tlp.err = nil
+	ast.Walk(tlp, pkg)
 	return nil
 }
 
@@ -274,16 +309,6 @@ func expandComplexFields(dt *DataType, types map[Type]*DataType) error {
 	return nil
 }
 
-func keys(m map[Type]*DataType) string {
-	var buf strings.Builder
-	fmt.Fprintf(&buf, "(%d)[ ", len(m))
-	for k, _ := range m {
-		fmt.Fprintf(&buf, "%s ", k)
-	}
-	buf.Write(([]byte)("]"))
-	return buf.String()
-}
-
 func (tlp *translatorLayerParser) setExternal() error {
 	if tlp.externalType == "" {
 		return fmt.Errorf("missing type value for ExternalType annotation")
@@ -395,4 +420,13 @@ func isPrimitiveTypeName(expr string) bool {
 
 func isTrue(s string) bool {
 	return strings.TrimSpace(strings.ToLower(s)) == "true"
+}
+
+func getPackageDir(packageName string) (string, error) {
+	cmd := exec.Command("go", "list", "-mod=mod", "-f", "{{.Dir}}", packageName)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("failed to query go list package %q: %w", packageName, err)
+	}
+	return strings.TrimSpace(string(out)), nil
 }
