@@ -3,16 +3,12 @@ package akogen
 import (
 	"fmt"
 	"go/ast"
-	"go/importer"
 	"go/parser"
 	"go/token"
 	"go/types"
-	"log"
 	"os/exec"
 	"path/filepath"
 	"strings"
-
-	"golang.org/x/tools/go/packages"
 )
 
 const (
@@ -95,26 +91,26 @@ func (tlp *translatorLayerParser) parseFile(src string) error {
 }
 
 func (tlp *translatorLayerParser) parseLibrary() error {
-	libDir, err := getPackageDir(tlp.wp.Lib.Path)
-	if err != nil {
-		return fmt.Errorf("failed to translate the library to a path: %w", err)
-	}
+	// libDir, err := getPackageDir(tlp.wp.Lib.Path)
+	// if err != nil {
+	// 	return fmt.Errorf("failed to translate the library to a path: %w", err)
+	// }
 
 	// fst := token.NewFileSet()
 	// pkgs, err := parser.ParseDir(fst, libDir, nil, parser.ParseComments)
 	// if err != nil {
 	// 	return fmt.Errorf("failed to parse library sources: %w", err)
 	// }
-	cfg := &packages.Config{Mode: packages.NeedTypes | packages.NeedSyntax}
-	pkgs, err := packages.Load(cfg, libDir)
-	if err != nil {
-		return fmt.Errorf("")
-	}
+	// cfg := &packages.Config{Mode: packages.NeedTypes | packages.NeedSyntax}
+	// pkgs, err := packages.Load(cfg, libDir)
+	// if err != nil {
+	// 	return fmt.Errorf("")
+	// }
 
-	tlp.parsedTypes = make(map[Type]*DataType)
-	tlp.currentType = ""
-	tlp.err = nil
-	ast.Walk(tlp, pkg)
+	// tlp.parsedTypes = make(map[Type]*DataType)
+	// tlp.currentType = ""
+	// tlp.err = nil
+	// ast.Walk(tlp, pkg)
 	return nil
 }
 

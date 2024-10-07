@@ -3,6 +3,7 @@ package akogen_test
 import (
 	"crypto/rand"
 	"fmt"
+	"log"
 	"math/big"
 	"os"
 	"reflect"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/tools/go/packages"
 
 	"github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen"
 	"github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen/lib"
@@ -352,6 +354,16 @@ func TestTranslationLayerGenerateFile(t *testing.T) {
 	require.NoError(t, err)
 	err = os.WriteFile("sample/generated.go", ([]byte)(srcCode), 0600)
 	require.NoError(t, err)
+}
+
+func TestLoadPackages(t *testing.T) {
+	cfg := &packages.Config{Mode: packages.NeedFiles | packages.NeedSyntax | packages.NeedTypes}
+	pkgs, err := packages.Load(cfg, "sample/def.go")
+	require.NoError(t, err)
+	assert.NotEmpty(t, pkgs)
+	for _, pkg := range pkgs {
+		log.Printf("%v %#v %#+v", pkg, pkg, pkg)
+	}
 }
 
 func randomString(t *testing.T, prefix string) string {
