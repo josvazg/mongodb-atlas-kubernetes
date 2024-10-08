@@ -3,10 +3,14 @@ package akogen_test
 import (
 	"crypto/rand"
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"log"
 	"math/big"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -357,13 +361,104 @@ func TestTranslationLayerGenerateFile(t *testing.T) {
 }
 
 func TestLoadPackages(t *testing.T) {
-	cfg := &packages.Config{Mode: packages.NeedFiles | packages.NeedSyntax | packages.NeedTypes}
-	pkgs, err := packages.Load(cfg, "sample/def.go")
+	packageName, err := akogen.GetFQPath("sample/def.go")
+	require.NoError(t, err)
+	cfg := &packages.Config{Mode: packages.NeedFiles |
+		packages.NeedSyntax |
+		packages.NeedTypes |
+		packages.NeedTypesInfo |
+		packages.NeedDeps |
+		packages.NeedImports}
+	pkgs, err := packages.Load(cfg, packageName)
 	require.NoError(t, err)
 	assert.NotEmpty(t, pkgs)
 	for _, pkg := range pkgs {
-		log.Printf("%v %#v %#+v", pkg, pkg, pkg)
+		log.Printf("Pkg id %s", pkg.ID)
+		log.Printf("Pkg path %v", pkg.PkgPath)
+		log.Printf("Pkg files %v", pkg.GoFiles)
+		log.Printf("Pkg types %v", pkg.Types)
+		log.Printf("Pkg type infos %v", pkg.TypesInfo)
+		log.Printf("Pkg complete %v", pkg.Types.Complete())
 	}
+
+}
+
+func TestGetAllComments(t *testing.T) {
+	comments := []string{
+		"// Sample internal types to define manually before code generation",
+		"// +akogen:ExternalSystem:Atlas",
+		`// +akogen:ExternalPackage:var=lib,path="github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen/lib"`,
+		"// +akogen:ExternalType:var=res,type=*lib.Resource",
+		"// +akogen:ExternalAPI:var=api,type=lib.API",
+		`// +akogen:WrapperType:var="w",type="Wrapper"`,
+		"// Resource is the internal type",
+		"// +akogen:InternalType:var=res,pointer=true",
+	}
+	srcInfo, err := loadGoSource(("./sample/def.go"))
+	require.NoError(t, err)
+	for i, comment := range srcInfo.commentsInOrder() {
+		assert.Equal(t, comments[i], comment)
+	}
+}
+
+func TestFindAnnotatedType(t *testing.T) {
+	annotation := "+akogen:InternalType"
+	srcInfo, err := loadGoSource(("./sample/def.go"))
+	require.NoError(t, err)
+	ts := srcInfo.findAnnotatedType(annotation)
+	require.NotNil(t, ts)
+	assert.Equal(t, "Resource", ts.Name.Name)
+}
+
+type sourceInfo struct {
+	fst *token.FileSet
+	f   *ast.File
+}
+
+func loadGoSource(sourceFile string) (*sourceInfo, error) {
+	fst := token.NewFileSet()
+	f, err := parser.ParseFile(fst, sourceFile, nil, parser.ParseComments)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse source file: %v", sourceFile)
+	}
+	return &sourceInfo{fst: fst, f: f}, nil
+}
+
+func (si *sourceInfo) commentsInOrder() []string {
+	comments := []string{}
+	for _, cg := range si.f.Comments {
+		for _, c := range cg.List {
+			comments = append(comments, c.Text)
+		}
+	}
+	return comments
+}
+
+func (si *sourceInfo) findAnnotatedType(annotation string) *ast.TypeSpec {
+	var found *ast.TypeSpec
+	grabType := false
+	ast.Inspect(si.f, func(n ast.Node) bool {
+		if comment, ok := n.(*ast.Comment); ok {
+			if strings.Contains(comment.Text, annotation) {
+				grabType = true
+				return false
+			}
+		} else if typeDecl, ok := n.(*ast.TypeSpec); ok {
+			if typeDecl.Doc != nil {
+				comment := typeDecl.Doc.Text()
+				if strings.Contains(comment, annotation) {
+					found = typeDecl
+					return false
+				}
+			} else if grabType {
+				found = typeDecl
+				grabType = false
+				return false
+			}
+		}
+		return true
+	})
+	return found
 }
 
 func randomString(t *testing.T, prefix string) string {

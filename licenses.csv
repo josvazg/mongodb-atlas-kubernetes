@@ -30,6 +30,7 @@ github.com/aws/aws-sdk-go/internal/sync/singleflight,https://github.com/aws/aws-
 github.com/beorn7/perks/quantile,https://github.com/beorn7/perks/blob/v1.0.1/LICENSE,MIT
 github.com/blang/semver/v4,https://github.com/blang/semver/blob/v4.0.0/v4/LICENSE,MIT
 github.com/cespare/xxhash/v2,https://github.com/cespare/xxhash/blob/v2.3.0/LICENSE.txt,MIT
+github.com/dave/jennifer/jen,https://github.com/dave/jennifer/blob/v1.7.1/LICENSE,MIT
 github.com/davecgh/go-spew/spew,https://github.com/davecgh/go-spew/blob/d8f796af33cc/LICENSE,ISC
 github.com/dimchansky/utfbom,https://github.com/dimchansky/utfbom/blob/v1.1.1/LICENSE,Apache-2.0
 github.com/emicklei/go-restful/v3,https://github.com/emicklei/go-restful/blob/v3.11.0/LICENSE,MIT
@@ -110,13 +111,15 @@ go.uber.org/multierr,https://github.com/uber-go/multierr/blob/v1.11.0/LICENSE.tx
 go.uber.org/zap,https://github.com/uber-go/zap/blob/v1.27.0/LICENSE,MIT
 golang.org/x/crypto,https://cs.opensource.google/go/x/crypto/+/v0.28.0:LICENSE,BSD-3-Clause
 golang.org/x/exp,https://cs.opensource.google/go/x/exp/+/8a7402ab:LICENSE,BSD-3-Clause
+golang.org/x/mod/semver,https://cs.opensource.google/go/x/mod/+/v0.20.0:LICENSE,BSD-3-Clause
 golang.org/x/net,https://cs.opensource.google/go/x/net/+/v0.30.0:LICENSE,BSD-3-Clause
 golang.org/x/oauth2,https://cs.opensource.google/go/x/oauth2/+/v0.23.0:LICENSE,BSD-3-Clause
 golang.org/x/sync,https://cs.opensource.google/go/x/sync/+/v0.8.0:LICENSE,BSD-3-Clause
-golang.org/x/sys,https://cs.opensource.google/go/x/sys/+/v0.26.0:LICENSE,BSD-3-Clause
+golang.org/x/sys/unix,https://cs.opensource.google/go/x/sys/+/v0.26.0:LICENSE,BSD-3-Clause
 golang.org/x/term,https://cs.opensource.google/go/x/term/+/v0.25.0:LICENSE,BSD-3-Clause
 golang.org/x/text,https://cs.opensource.google/go/x/text/+/v0.19.0:LICENSE,BSD-3-Clause
 golang.org/x/time/rate,https://cs.opensource.google/go/x/time/+/v0.7.0:LICENSE,BSD-3-Clause
+golang.org/x/tools,https://cs.opensource.google/go/x/tools/+/v0.24.0:LICENSE,BSD-3-Clause
 gomodules.xyz/jsonpatch/v2,https://github.com/gomodules/jsonpatch/blob/v2.4.0/v2/LICENSE,Apache-2.0
 google.golang.org/api,https://github.com/googleapis/google-api-go-client/blob/v0.200.0/LICENSE,BSD-3-Clause
 google.golang.org/api/internal/third_party/uritemplates,https://github.com/googleapis/google-api-go-client/blob/v0.200.0/internal/third_party/uritemplates/LICENSE,BSD-3-Clause
