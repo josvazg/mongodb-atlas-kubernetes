@@ -27,6 +27,78 @@ var primitiveTypeNames = []string{
 	"complex64", "complex128",
 }
 
+type AnnotationType int
+
+const (
+	NoValue     AnnotationType = iota
+	SimpleValue
+	ArgsValues
+)
+
+// GenAnnotation represent any annotation in code with the following format
+// {generator-name}:{Name}:{Args}
+// Args is a comma separated list of key=value pairs. Values might be in quotes.
+//
+// Eg. `+akogen:ExternalAPI:var=api,type="lib.API"`
+type GenAnnotation struct {
+	Raw   string
+	Name  string
+	Type  AnnotationType
+	Args  map[string]string
+	Value string
+}
+
+func GenAnnotationsFor(generatorName string, sourceFile string) ([]GenAnnotation, error) {
+	pattern := generatorName
+	if pattern[0] != '+' {
+		pattern = "+" + pattern
+	}
+	fst := token.NewFileSet()
+	f, err := parser.ParseFile(fst, sourceFile, nil, parser.ParseComments)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse source file: %v", sourceFile)
+	}
+
+	annotations := []GenAnnotation{}
+	for _, cg := range f.Comments {
+		for _, c := range cg.List {
+			if !strings.Contains(c.Text, pattern) {
+				continue
+			}
+			payload, err := parseAnnotationValue(c.Text)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse annotation value: %w", err)
+			}
+			ga, err := buildGenAnnotationValue(c.Text, payload)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse annotation: %w", err)
+			}
+			annotations = append(annotations, ga)
+		}
+	}
+	return annotations, nil
+}
+
+func buildGenAnnotationValue(raw, payload string) (GenAnnotation, error) {
+	parts := strings.Split(payload, ":")
+	if len(parts) < 1 || len(parts) > 2 {
+		return GenAnnotation{}, fmt.Errorf("failed to parse annotation name for %q", payload)
+	}
+	if len(parts) == 1 || len(parts) ==2 && strings.TrimSpace(parts[1]) == "" {
+		return GenAnnotation{Raw: raw, Name: parts[0], Type: NoValue}, nil
+	}
+	name := strings.TrimSpace(parts[0])
+	args, err := parseAnnotationCSVValue(payload)
+	if err == nil {
+		return GenAnnotation{Raw: raw, Name: name, Type: ArgsValues, Args: args}, nil
+	}
+	value, err := parseAnnotationValue(payload)
+	if err == nil {
+		return GenAnnotation{Raw: raw, Name: name, Type: SimpleValue, Value: value}, nil
+	}
+	return GenAnnotation{}, fmt.Errorf("failed to parse annotation name and value for %q", payload)
+}
+
 func NewTranslationLayerFromSourceFile(src string) (*TranslationLayer, error) {
 	tlp := translatorLayerParser{parsedTypes: make(map[Type]*DataType)}
 
@@ -343,7 +415,7 @@ func packageFor(fst *token.FileSet, f *ast.File, path string) (*types.Package, e
 func parseAssignment(s string) (string, string, error) {
 	parts := strings.SplitN(s, "=", 2)
 	if len(parts) != 2 {
-		return "", "", fmt.Errorf("failed to extract assignment value from %s", s)
+		return "", "", fmt.Errorf("failed to extract assignment value from %q", s)
 	}
 	return parts[0], strings.Trim(parts[1], " \""), nil
 }
@@ -354,6 +426,14 @@ func parseAnnotationValue(s string) (string, error) {
 		return "", fmt.Errorf("failed to extract annotation value from %s", s)
 	}
 	return parts[1], nil
+}
+
+func parseAnnotationKey(s string) (string, error) {
+	parts := strings.SplitN(s, ":", 2)
+	if len(parts) != 2 {
+		return "", fmt.Errorf("failed to extract annotation key from %s", s)
+	}
+	return parts[0], nil
 }
 
 func parseCSVMap(value string) (map[string]string, error) {
