@@ -8,6 +8,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/dave/jennifer/jen"
+	"github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen/gen"
+	"github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen/metadata"
 )
 
 const (
@@ -18,11 +20,11 @@ type Conversion struct {
 	Root   bool
 	To     bool
 	Name   string
-	Source *DataType
-	Target *DataType
+	Source *metadata.DataType
+	Target *metadata.DataType
 }
 
-func NewConversion(name string, target, source *DataType) *Conversion {
+func NewConversion(name string, target, source *metadata.DataType) *Conversion {
 	return &Conversion{
 		Root:   true,
 		To:     true,
@@ -48,7 +50,7 @@ func (c *Conversion) method() string {
 		return fmt.Sprintf("%s%s", c.direction(), c.Name)
 	}
 	return fmt.Sprintf("%s%s%s",
-		firstToLower(c.Target.dereference().base()), firstToUpper(c.direction()), c.Name)
+		firstToLower(c.Target.Dereference().Base()), firstToUpper(c.direction()), c.Name)
 }
 
 func (c *Conversion) reverse() *Conversion {
@@ -89,13 +91,11 @@ func (c *Conversion) generateFunc(f *jen.File) error {
 	if err != nil {
 		return fmt.Errorf("struct conversion failed: %w", err)
 	}
-	generateFunctionSignature(
-		f,
-		&FunctionSignature{
-			Name:    c.method(),
-			Args:    []NamedType{c.Source.NamedType},
-			Returns: []NamedType{c.Target.NamedType},
-		},
+	gen.Function(f, &metadata.FunctionSignature{
+		Name:    c.method(),
+		Args:    []metadata.NamedType{c.Source.NamedType},
+		Returns: []metadata.NamedType{c.Target.NamedType},
+	}).Block(
 		generateReturnNilOnNilArg(c.Source.NamedType),
 		returnCode,
 	)
@@ -105,7 +105,7 @@ func (c *Conversion) generateFunc(f *jen.File) error {
 func (c *Conversion) subConversions() ([]*Conversion, error) {
 	conversions := []*Conversion{}
 	for _, field := range c.Target.Fields {
-		if field.Kind == Struct {
+		if field.Kind == metadata.Struct {
 			_, source, err := findSourceField(c.Source.Fields, field)
 			if err != nil {
 				return nil, fmt.Errorf("cannot find pair for struct %v at %v", field, c.Source.Fields)
@@ -117,7 +117,7 @@ func (c *Conversion) subConversions() ([]*Conversion, error) {
 	return conversions, nil
 }
 
-func (c *Conversion) subConversion(target, source *DataField) *Conversion {
+func (c *Conversion) subConversion(target, source *metadata.DataField) *Conversion {
 	return &Conversion{
 		Root:   false,
 		To:     c.To,
@@ -140,10 +140,10 @@ func (c *Conversion) generateAssignmentExpression() (*jen.Statement, error) {
 	if err != nil {
 		return nil, err
 	}
-	if c.Target.isPointer() {
-		return c.Target.Type.dereference().generate(jen.Op("&")).Values(fieldConversions), nil
+	if c.Target.IsPointer() {
+		return gen.AddType(jen.Op("&"), c.Target.Type.Dereference()).Values(fieldConversions), nil
 	}
-	return c.Target.Type.generate(nil).Values(fieldConversions), nil
+	return gen.Type(c.Target.Type).Values(fieldConversions), nil
 }
 
 func (c *Conversion) generateFields() (jen.Dict, error) {
@@ -151,14 +151,14 @@ func (c *Conversion) generateFields() (jen.Dict, error) {
 	values := jen.Dict{}
 	for _, field := range c.Target.Fields {
 		var err error
-		var srcField *DataField
+		var srcField *metadata.DataField
 		var conversion *jen.Statement
 		remaining, srcField, err = findSourceField(remaining, field)
 		if err != nil {
 			return nil, fmt.Errorf("failed to match conversion pair: %w", err)
 		}
 		key := jen.Id(field.FieldName)
-		if field.Kind != SimpleField {
+		if field.Kind != metadata.SimpleField {
 			subConversion := c.subConversion(field, srcField)
 			cm := subConversion.method()
 			values[key] = jen.Id(cm).Call(
@@ -175,10 +175,10 @@ func (c *Conversion) generateFields() (jen.Dict, error) {
 	return values, nil
 }
 
-func findSourceField(candidates []*DataField, target *DataField) ([]*DataField, *DataField, error) {
-	prefix := []*DataField{}
+func findSourceField(candidates []*metadata.DataField, target *metadata.DataField) ([]*metadata.DataField, *metadata.DataField, error) {
+	prefix := []*metadata.DataField{}
 	for i, candidate := range candidates {
-		if strings.EqualFold(target.FieldName, candidate.FieldName) && target.assignableFrom(candidate) {
+		if strings.EqualFold(target.FieldName, candidate.FieldName) && target.AssignableFrom(candidate) {
 			remaining := append(prefix, candidates[i+1:]...)
 			if reflect.DeepEqual(remaining, candidates) {
 				panic(fmt.Sprintf("remaining cannot match candidates, source %v has not been extracted from %v",
@@ -191,15 +191,15 @@ func findSourceField(candidates []*DataField, target *DataField) ([]*DataField, 
 	return nil, nil, fmt.Errorf("could not find corresponding field for %v at %v", target, candidates)
 }
 
-func generateAssignment(target *DataType, src *DataType, srcField NamedType) (*jen.Statement, error) {
+func generateAssignment(target *metadata.DataType, src *metadata.DataType, srcField metadata.NamedType) (*jen.Statement, error) {
 	switch {
 	// Same types on both sides
 	case srcField.Type == target.Type:
 		return jen.Id(src.Name).Dot(srcField.Name), nil
 
 	// Target can be converted from the primitive type of the source field
-	case target.Primitive != nil && *target.Primitive == srcField.Type.dereference():
-		primitive, ok := target.primitive()
+	case target.Primitive != nil && *target.Primitive == srcField.Type.Dereference():
+		primitive, ok := target.AsPrimitive()
 		if !ok {
 			return nil, fmt.Errorf("could not cast target %v to primitive type", target)
 		}
@@ -207,28 +207,28 @@ func generateAssignment(target *DataType, src *DataType, srcField NamedType) (*j
 		if err != nil {
 			return nil, fmt.Errorf("failed to assign after casting field to primitive: %w", err)
 		}
-		return jen.Id(target.Type.dereference().String()).Call(assignment), nil
+		return jen.Id(target.Type.Dereference().String()).Call(assignment), nil
 
 	// Target is a pointer
-	case target.isPointer() && !srcField.isPointer():
-		assignment, err := generateAssignment(target, src, srcField.pointer())
+	case target.IsPointer() && !srcField.IsPointer():
+		assignment, err := generateAssignment(target, src, srcField.Pointer())
 		if err != nil {
 			return nil, fmt.Errorf("failed to assign to pointer target %v: %w", target, err)
 		}
 		return jen.Qual(pointerLib, "MakePtr").Call(assignment), nil
 
 	// Source field is the pointer
-	case srcField.isPointer() && !target.isPointer():
-		deref := srcField.dereference()
+	case srcField.IsPointer() && !target.IsPointer():
+		deref := srcField.Dereference()
 		assignment, err := generateAssignment(target, src, deref)
 		if err != nil {
 			return nil, fmt.Errorf("failed to assign to pointer target %v: %w", target, err)
 		}
-		return jen.Qual(pointerLib, "GetOrDefault").Call(jen.List(assignment, deref.generateZeroValue())), nil
+		return jen.Qual(pointerLib, "GetOrDefault").Call(jen.List(assignment, gen.ZeroValue(deref))), nil
 
 	// Source field can be converted to the primitive type of the target
-	case srcField.Primitive != nil && *srcField.Primitive == target.Type.dereference():
-		primitive, ok := srcField.primitive()
+	case srcField.Primitive != nil && *srcField.Primitive == target.Type.Dereference():
+		primitive, ok := srcField.AsPrimitive()
 		if !ok {
 			return nil, fmt.Errorf("could not cast field %v.%v to primitive type", src, srcField)
 		}
@@ -236,15 +236,15 @@ func generateAssignment(target *DataType, src *DataType, srcField NamedType) (*j
 		if err != nil {
 			return nil, fmt.Errorf("failed to assign after casting field to primitive: %w", err)
 		}
-		return jen.Id(primitive.Type.dereference().String()).Call(assignment), nil
+		return jen.Id(primitive.Type.Dereference().String()).Call(assignment), nil
 
 	default:
 		return nil, fmt.Errorf("cannot find way to assign %s.%v to %v", src, srcField, target)
 	}
 }
 
-func generateReturnNilOnNilArg(nt NamedType) *jen.Statement {
-	if nt.isPointer() {
+func generateReturnNilOnNilArg(nt metadata.NamedType) *jen.Statement {
+	if nt.IsPointer() {
 		return jen.If(jen.Id(nt.Name).Op("==").Nil()).Block(
 			jen.Return(jen.Nil()),
 		)

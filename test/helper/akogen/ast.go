@@ -9,6 +9,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen/metadata"
 )
 
 const (
@@ -27,80 +29,8 @@ var primitiveTypeNames = []string{
 	"complex64", "complex128",
 }
 
-type AnnotationType int
-
-const (
-	NoValue     AnnotationType = iota
-	SimpleValue
-	ArgsValues
-)
-
-// GenAnnotation represent any annotation in code with the following format
-// {generator-name}:{Name}:{Args}
-// Args is a comma separated list of key=value pairs. Values might be in quotes.
-//
-// Eg. `+akogen:ExternalAPI:var=api,type="lib.API"`
-type GenAnnotation struct {
-	Raw   string
-	Name  string
-	Type  AnnotationType
-	Args  map[string]string
-	Value string
-}
-
-func GenAnnotationsFor(generatorName string, sourceFile string) ([]GenAnnotation, error) {
-	pattern := generatorName
-	if pattern[0] != '+' {
-		pattern = "+" + pattern
-	}
-	fst := token.NewFileSet()
-	f, err := parser.ParseFile(fst, sourceFile, nil, parser.ParseComments)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse source file: %v", sourceFile)
-	}
-
-	annotations := []GenAnnotation{}
-	for _, cg := range f.Comments {
-		for _, c := range cg.List {
-			if !strings.Contains(c.Text, pattern) {
-				continue
-			}
-			payload, err := parseAnnotationValue(c.Text)
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse annotation value: %w", err)
-			}
-			ga, err := buildGenAnnotationValue(c.Text, payload)
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse annotation: %w", err)
-			}
-			annotations = append(annotations, ga)
-		}
-	}
-	return annotations, nil
-}
-
-func buildGenAnnotationValue(raw, payload string) (GenAnnotation, error) {
-	parts := strings.Split(payload, ":")
-	if len(parts) < 1 || len(parts) > 2 {
-		return GenAnnotation{}, fmt.Errorf("failed to parse annotation name for %q", payload)
-	}
-	if len(parts) == 1 || len(parts) ==2 && strings.TrimSpace(parts[1]) == "" {
-		return GenAnnotation{Raw: raw, Name: parts[0], Type: NoValue}, nil
-	}
-	name := strings.TrimSpace(parts[0])
-	args, err := parseAnnotationCSVValue(payload)
-	if err == nil {
-		return GenAnnotation{Raw: raw, Name: name, Type: ArgsValues, Args: args}, nil
-	}
-	value, err := parseAnnotationValue(payload)
-	if err == nil {
-		return GenAnnotation{Raw: raw, Name: name, Type: SimpleValue, Value: value}, nil
-	}
-	return GenAnnotation{}, fmt.Errorf("failed to parse annotation name and value for %q", payload)
-}
-
 func NewTranslationLayerFromSourceFile(src string) (*TranslationLayer, error) {
-	tlp := translatorLayerParser{parsedTypes: make(map[Type]*DataType)}
+	tlp := translatorLayerParser{parsedTypes: make(map[metadata.Type]*metadata.DataType)}
 
 	err := tlp.parseFile(src)
 	if err != nil {
@@ -123,8 +53,8 @@ type translatorLayerParser struct {
 	externalAPIType  string
 	internalAlias    string
 	internalPointer  bool
-	parsedTypes      map[Type]*DataType
-	currentType      Type
+	parsedTypes      map[metadata.Type]*metadata.DataType
+	currentType      metadata.Type
 	wp               WrappedType
 	err              error
 }
@@ -197,7 +127,7 @@ func (tlp *translatorLayerParser) parseComment(c *ast.Comment) error {
 	if strings.Contains(c.Text, "+akogen:") {
 		annotation, err := parseAnnotationValue(c.Text)
 		if err != nil {
-			fmt.Errorf("failed to extract annotation value: %w", err)
+			return fmt.Errorf("failed to extract annotation value: %w", err)
 		}
 		return tlp.parseAnnotation(annotation)
 	}
@@ -238,7 +168,7 @@ func (tlp *translatorLayerParser) parseAnnotation(annotation string) error {
 		if err != nil {
 			return fmt.Errorf("failed to parse WrapperType annotation: %w", err)
 		}
-		tlp.wp.Wrapper = NewNamedType(values[varKey], values[typeKey])
+		tlp.wp.Wrapper = metadata.NewNamedType(values[varKey], values[typeKey])
 	case strings.Contains(annotation, "InternalType:"):
 		values, err := parseAnnotationCSVValue(annotation)
 		if err != nil {
@@ -304,11 +234,11 @@ func (tlp *translatorLayerParser) parseType(ts *ast.TypeSpec) error {
 		if tlp.internalPointer {
 			typeName = "*" + typeName
 		}
-		tlp.wp.Internal = NewStruct(NewNamedType(tlp.internalAlias, typeName))
+		tlp.wp.Internal = metadata.NewStruct(metadata.NewNamedType(tlp.internalAlias, typeName))
 	} else {
-		tlp.parsedTypes[Type(typeName)] = NewSimpleDataType(UnknownName, typeName)
+		tlp.parsedTypes[metadata.Type(typeName)] = metadata.NewSimpleDataType(metadata.UnknownName, typeName)
 	}
-	tlp.currentType = Type(typeName)
+	tlp.currentType = metadata.Type(typeName)
 	return nil
 }
 
@@ -322,14 +252,14 @@ func (tlp *translatorLayerParser) parseStructType(st *ast.StructType) error {
 		}
 		name := f.Names[0].String()
 		typeName := parseTypeExpr(f.Type)
-		simpleField := NewSimpleField(name, typeName)
-		var dataType *DataType
+		simpleField := metadata.NewSimpleField(name, typeName)
+		var dataType *metadata.DataType
 		if tlp.wp.Internal != nil && tlp.currentType == tlp.wp.Internal.Type {
 			dataType = tlp.wp.Internal
 		} else {
-			dataType = tlp.parsedTypes[Type(tlp.currentType)]
+			dataType = tlp.parsedTypes[metadata.Type(tlp.currentType)]
 		}
-		dataType.Kind = Struct
+		dataType.Kind = metadata.Struct
 		dataType.Fields = append(dataType.Fields, simpleField)
 	}
 	tlp.currentType = ""
@@ -351,25 +281,25 @@ func (tlp *translatorLayerParser) parseIdent(id *ast.Ident) error {
 	if id == nil || tlp.currentType == "" || id.Name == string(tlp.currentType) {
 		return nil
 	}
-	dt := tlp.parsedTypes[Type(tlp.currentType)]
+	dt := tlp.parsedTypes[metadata.Type(tlp.currentType)]
 	if isPrimitiveTypeName(id.Name) {
-		dt = dt.WithPrimitive(Type(id.Name))
+		dt = dt.WithPrimitive(metadata.Type(id.Name))
 	}
 	return nil
 }
 
-func expandComplexFields(dt *DataType, types map[Type]*DataType) error {
+func expandComplexFields(dt *metadata.DataType, types map[metadata.Type]*metadata.DataType) error {
 	for i, field := range dt.Fields {
 		if isPrimitiveTypeName(string(field.Type)) {
 			continue
 		}
-		key := field.Type.dereference()
+		key := field.Type.Dereference()
 		fullDecl, ok := types[key]
 		if ok {
-			newField := NewFieldFromData(field.FieldName, fullDecl)
+			newField := metadata.NewFieldFromData(field.FieldName, fullDecl)
 			newField.Type = field.Type
 			dt.Fields[i] = newField
-			if fullDecl.Kind != SimpleField {
+			if fullDecl.Kind != metadata.SimpleField {
 				expandComplexFields(fullDecl, types)
 			}
 		}
@@ -385,7 +315,7 @@ func (tlp *translatorLayerParser) setExternal() error {
 	if err != nil {
 		return fmt.Errorf("failed to parse ExternalType named type: %w", err)
 	}
-	tlp.wp.External = NewStruct(externalNamedType)
+	tlp.wp.External = metadata.NewStruct(externalNamedType)
 	return nil
 }
 
@@ -457,17 +387,17 @@ func parseAnnotationCSVValue(s string) (map[string]string, error) {
 	return parseCSVMap(value)
 }
 
-func parseNamedType(alias, namespacedTypeName, pkgPath string) (NamedType, error) {
+func parseNamedType(alias, namespacedTypeName, pkgPath string) (metadata.NamedType, error) {
 	dereferenced, isPtr := dereference(namespacedTypeName)
 	_, typeName, err := splitNamespacedType(dereferenced)
 	if err != nil {
-		return NamedType{}, fmt.Errorf("failed to parse ExternalType named type: %w", err)
+		return metadata.NamedType{}, fmt.Errorf("failed to parse ExternalType named type: %w", err)
 	}
 	fullTypeName := fmt.Sprintf("%s.%s", pkgPath, typeName)
 	if isPtr {
 		fullTypeName = fmt.Sprintf("*%s", fullTypeName)
 	}
-	return NewNamedType(alias, fullTypeName), nil
+	return metadata.NewNamedType(alias, fullTypeName), nil
 }
 
 func dereference(namespacedTypeName string) (string, bool) {

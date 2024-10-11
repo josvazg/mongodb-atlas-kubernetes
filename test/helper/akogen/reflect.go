@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"path/filepath"
 	"reflect"
+
+	"github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen/metadata"
 )
 
 const (
@@ -58,16 +60,16 @@ func NewTranslationLayer(tls *TranslationLayerSpec, settings TranslationLayerSet
 		PackageName: tls.PackageName,
 		WrappedType: &WrappedType{
 			Translation: Translation{
-				Lib:          Import{Alias: importAlias, Path: pkgPath},
+				Lib:          metadata.Import{Alias: importAlias, Path: pkgPath},
 				ExternalName: settings.ExternalName,
 				External:     external,
-				ExternalAPI:  NewNamedType(shortenName(tls.API.Name()), tls.API.Name()),
+				ExternalAPI:  metadata.NewNamedType(shortenName(tls.API.Name()), tls.API.Name()),
 				Internal:     internal,
-				Wrapper:      NewNamedType(shortenName(wrapperTypeName), wrapperTypeName),
+				Wrapper:      metadata.NewNamedType(shortenName(wrapperTypeName), wrapperTypeName),
 			},
 			WrapperMethods: NewWrapperMethodsFromReflect(
 				settings.ExternalName,
-				NewNamedType(shortenName(settings.WrapperType), settings.WrapperType).pointer(),
+				metadata.NewNamedType(shortenName(settings.WrapperType), settings.WrapperType).Pointer(),
 				tls.API,
 				external.NamedType,
 				internal.NamedType,
@@ -91,56 +93,56 @@ func wrapper(wrapperName, fallback string) string {
 	return wrapperName
 }
 
-func NewTypeFromReflect(t reflect.Type) Type {
+func NewTypeFromReflect(t reflect.Type) metadata.Type {
 	if t.PkgPath() != "" {
-		return Type(fmt.Sprintf("%s.%s", t.PkgPath(), t.Name()))
+		return metadata.Type(fmt.Sprintf("%s.%s", t.PkgPath(), t.Name()))
 	}
-	return Type(t.Name())
+	return metadata.Type(t.Name())
 }
 
-func NewNamedTypeFromReflect(name string, t reflect.Type) NamedType {
-	var primitive *Type
+func NewNamedTypeFromReflect(name string, t reflect.Type) metadata.NamedType {
+	var primitive *metadata.Type
 	typeName := NewTypeFromReflect(t)
 	if isPrimitive(t) {
-		p := Type(t.Kind().String())
+		p := metadata.Type(t.Kind().String())
 		if p != typeName {
 			primitive = &p
 		}
 	}
-	return NamedType{
+	return metadata.NamedType{
 		Name:      name,
 		Type:      typeName,
 		Primitive: primitive,
 	}
 }
 
-func NewDataTypeFromReflect(t reflect.Type) *DataType {
+func NewDataTypeFromReflect(t reflect.Type) *metadata.DataType {
 	switch t.Kind() {
 	case reflect.Struct:
 		return newStructFromReflect(shortenTypeName(t), t)
 	case reflect.Pointer:
 		pointedType := t.Elem()
 		dt := NewDataTypeFromReflect(pointedType)
-		dt.NamedType.Type = dt.NamedType.Type.pointer()
+		dt.NamedType.Type = dt.NamedType.Type.Pointer()
 		return dt
 	}
 	return nil
 }
 
-func NewWrapperMethodsFromReflect(externalName string, wrapper NamedType, apiType reflect.Type, external, internal NamedType) []WrapperMethod {
+func NewWrapperMethodsFromReflect(externalName string, wrapper metadata.NamedType, apiType reflect.Type, external, internal metadata.NamedType) []WrapperMethod {
 	wms := make([]WrapperMethod, 0, apiType.NumMethod())
 	for i := 0; i < apiType.NumMethod(); i++ {
 		m := apiType.Method(i)
 		wms = append(wms, WrapperMethod{
-			MethodSignature: MethodSignature{
+			MethodSignature: metadata.MethodSignature{
 				Receiver: wrapper,
-				FunctionSignature: FunctionSignature{
+				FunctionSignature: metadata.FunctionSignature{
 					Name:    m.Name,
-					Args:    argsFromReflect(m.Type).replaceType(external, internal),
-					Returns: returnsFromReflect(m.Type).replaceType(external, internal),
+					Args:    argsFromReflect(m.Type).ReplaceType(external, internal),
+					Returns: returnsFromReflect(m.Type).ReplaceType(external, internal),
 				},
 			},
-			WrappedCall: FunctionSignature{
+			WrappedCall: metadata.FunctionSignature{
 				Name:    m.Name,
 				Args:    argsFromReflect(m.Type),
 				Returns: returnsFromReflect(m.Type),
@@ -152,14 +154,14 @@ func NewWrapperMethodsFromReflect(externalName string, wrapper NamedType, apiTyp
 
 var ArgsFromReflect = argsFromReflect
 
-func argsFromReflect(t reflect.Type) NamedTypes {
-	args := make([]NamedType, 0, t.NumIn())
+func argsFromReflect(t reflect.Type) metadata.NamedTypes {
+	args := make([]metadata.NamedType, 0, t.NumIn())
 	for i := 0; i < t.NumIn(); i++ {
 		argType := t.In(i)
 		nt := NewNamedTypeFromReflect(shortenTypeName(argType), argType)
 		if argType.Kind() == reflect.Pointer {
 			argType = argType.Elem()
-			nt = NewNamedTypeFromReflect(shortenTypeName(argType), argType).pointer()
+			nt = NewNamedTypeFromReflect(shortenTypeName(argType), argType).Pointer()
 		}
 		args = append(args, nt)
 	}
@@ -168,30 +170,30 @@ func argsFromReflect(t reflect.Type) NamedTypes {
 
 var ReturnsFromReflect = returnsFromReflect
 
-func returnsFromReflect(t reflect.Type) NamedTypes {
-	returns := make([]NamedType, 0, t.NumOut())
+func returnsFromReflect(t reflect.Type) metadata.NamedTypes {
+	returns := make([]metadata.NamedType, 0, t.NumOut())
 	for i := 0; i < t.NumOut(); i++ {
 		returnType := t.Out(i)
 		nt := NewNamedTypeFromReflect(shortenTypeName(returnType), returnType)
 		if returnType.Kind() == reflect.Pointer {
 			returnType = returnType.Elem()
-			nt = NewNamedTypeFromReflect(shortenTypeName(returnType), returnType).pointer()
+			nt = NewNamedTypeFromReflect(shortenTypeName(returnType), returnType).Pointer()
 		}
 		returns = append(returns, nt)
 	}
 	return returns
 }
 
-func newStructFromReflect(name string, st reflect.Type) *DataType {
-	return &DataType{
+func newStructFromReflect(name string, st reflect.Type) *metadata.DataType {
+	return &metadata.DataType{
 		NamedType: NewNamedTypeFromReflect(name, st),
-		Kind:      Struct,
+		Kind:      metadata.Struct,
 		Fields:    dataFieldsFromReflect(st),
 	}
 }
 
-func dataFieldsFromReflect(st reflect.Type) []*DataField {
-	dataFields := []*DataField{}
+func dataFieldsFromReflect(st reflect.Type) []*metadata.DataField {
+	dataFields := []*metadata.DataField{}
 	for i := 0; i < st.NumField(); i++ {
 		sf := st.Field(i)
 		if sf.IsExported() {
@@ -202,7 +204,7 @@ func dataFieldsFromReflect(st reflect.Type) []*DataField {
 	return dataFields
 }
 
-func newDataFieldFromReflect(name string, t reflect.Type) *DataField {
+func newDataFieldFromReflect(name string, t reflect.Type) *metadata.DataField {
 	kind := t.Kind()
 	switch {
 	case kind == reflect.Struct:
@@ -212,25 +214,25 @@ func newDataFieldFromReflect(name string, t reflect.Type) *DataField {
 	case kind == reflect.Pointer:
 		pointedType := t.Elem()
 		df := newDataFieldFromReflect(name, pointedType)
-		df.NamedType.Type = df.NamedType.Type.pointer()
+		df.NamedType.Type = df.NamedType.Type.Pointer()
 		return df
 	default:
 		panic(fmt.Sprintf("unimplemented for Kind=%v", t.Kind()))
 	}
 }
 
-func newStructFieldFromReflect(name string, t reflect.Type) *DataField {
-	return &DataField{
+func newStructFieldFromReflect(name string, t reflect.Type) *metadata.DataField {
+	return &metadata.DataField{
 		DataType:  *newStructFromReflect(shortenTypeName(t), t),
 		FieldName: name,
 	}
 }
 
-func newSimpleFieldFromReflect(name string, t reflect.Type) *DataField {
-	return &DataField{
-		DataType: DataType{
+func newSimpleFieldFromReflect(name string, t reflect.Type) *metadata.DataField {
+	return &metadata.DataField{
+		DataType: metadata.DataType{
 			NamedType: NewNamedTypeFromReflect(name, t),
-			Kind:      SimpleField,
+			Kind:      metadata.SimpleField,
 		},
 		FieldName: name,
 	}

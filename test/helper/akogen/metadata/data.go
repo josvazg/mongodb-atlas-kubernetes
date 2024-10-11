@@ -1,4 +1,4 @@
-package akogen
+package metadata
 
 import (
 	"fmt"
@@ -63,9 +63,9 @@ func (df *DataField) String() string {
 	return fmt.Sprintf("%s:%s", df.FieldName, &df.DataType)
 }
 
-func (df *DataField) assignableFrom(other *DataField) bool {
+func (df *DataField) AssignableFrom(other *DataField) bool {
 	return df.Kind == other.Kind &&
-		(df.Kind == SimpleField && df.NamedType.assignableFrom(other.NamedType)) ||
+		(df.Kind == SimpleField && df.NamedType.AssignableFrom(other.NamedType)) ||
 		(df.Kind != SimpleField)
 }
 
@@ -106,11 +106,11 @@ func NewStructField(fieldName string, nt NamedType, fields ...*DataField) *DataF
 	}
 }
 
-func (dt *DataType) primitive() (*DataType, bool) {
+func (dt *DataType) AsPrimitive() (*DataType, bool) {
 	if dt.Kind != SimpleField {
 		return dt, false
 	}
-	nt, ok := dt.NamedType.primitive()
+	nt, ok := dt.NamedType.AsPrimitive()
 	if !ok {
 		return dt, false
 	}
