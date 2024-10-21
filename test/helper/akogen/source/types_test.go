@@ -38,10 +38,7 @@ func TestDescribeType(t *testing.T) {
 		metadata.NewSimpleField("SelectedOption", "OptionType").WithPrimitive("string"),
 		metadata.NewSimpleField("Status", "string"),
 	)
-	dt, err := sg.DescribeType(
-		"github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen/sample",
-		"Resource",
-	)
+	dt, err := sg.DescribeType("Resource")
 	require.NoError(t, err)
 	assert.Equal(t, expected, dt)
 }

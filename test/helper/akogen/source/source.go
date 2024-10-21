@@ -10,6 +10,7 @@ import (
 type SourceGen struct {
 	fst *token.FileSet
 	f   *ast.File
+	srcFile string
 }
 
 func New(sourceFile string) (*SourceGen, error) {
@@ -18,5 +19,6 @@ func New(sourceFile string) (*SourceGen, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse source file %v: %v", sourceFile, err)
 	}
-	return &SourceGen{fst: fst, f: f}, nil
+
+	return &SourceGen{fst: fst, f: f, srcFile: sourceFile}, nil
 }

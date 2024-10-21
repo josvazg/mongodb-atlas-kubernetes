@@ -37,8 +37,7 @@ func (sg *SourceGen) FindAnnotatedType(annotation string) *ast.TypeSpec {
 	return found
 }
 
-// TODO can we avoid passing pkgPath? can we detect from file info?
-func (sg *SourceGen) DescribeType(pkgPath, typeName string) (*metadata.DataType, error) {
+func (sg *SourceGen) DescribeType(typeName string) (*metadata.DataType, error) {
 	conf := &packages.Config{
 		Mode: packages.NeedName |
 			packages.NeedFiles |
@@ -48,6 +47,10 @@ func (sg *SourceGen) DescribeType(pkgPath, typeName string) (*metadata.DataType,
 			packages.NeedTypesSizes |
 			packages.NeedSyntax |
 			packages.NeedTypesInfo,
+	}
+	pkgPath, err := PkgPathFor(sg.srcFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to detect package path for source file %q: %w", sg.srcFile, err)
 	}
 	pkgs, err := packages.Load(conf, pkgPath)
 	if err != nil {
