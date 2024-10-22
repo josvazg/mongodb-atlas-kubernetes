@@ -8,6 +8,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/dave/jennifer/jen"
+
 	"github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen/gen"
 	"github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen/metadata"
 )

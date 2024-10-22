@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-func PkgPathFor(filePath string) (string, error) {
+func PkgPath(filePath string) (string, error) {
 	absPath, err := filepath.Abs(filePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to compute absolute path: %w", err)
@@ -21,7 +21,11 @@ func PkgPathFor(filePath string) (string, error) {
 	if len(baseDir) > len(absPath) {
 		return "", fmt.Errorf("basedir %q is %d bytes, expected to be less than %d bytes", baseDir, len(baseDir), len(absPath))
 	}
-	return filepath.Join(modPath, filepath.Dir(absPath[len(baseDir):])), nil
+	relPath := absPath[len(baseDir):]
+	if !isDir(absPath) {
+		relPath = filepath.Dir(relPath)
+	}
+	return filepath.Join(modPath, relPath), nil
 }
 
 func ModPath(filePath string) (string, string, error) {
@@ -32,7 +36,7 @@ func ModPath(filePath string) (string, string, error) {
 		}
 		filePath = absPath
 	}
-	dir := filepath.Dir(filePath)
+	dir := filepath.Clean(filepath.Dir(filePath))
 	for {
 		modFile := filepath.Join(dir, "go.mod")
 		if line, err := readFirstLine(modFile); err == nil {
@@ -49,7 +53,7 @@ func ModPath(filePath string) (string, string, error) {
 }
 
 func readFirstLine(filename string) (string, error) {
-	file, err := os.Open(filename)
+	file, err := os.Open(filepath.Clean(filename))
 	if err != nil {
 		return "", fmt.Errorf("failed to open file: %w", err)
 	}
@@ -62,7 +66,7 @@ func readFirstLine(filename string) (string, error) {
 	return "", fmt.Errorf("failed to read first line: %w", err)
 }
 
-func FilePathFor(pkgPath string) (string, error) {
+func FilePath(pkgPath string) (string, error) {
 	if stdlibDir := filePathForStdLibPkg(pkgPath); stdlibDir != "" {
 		return stdlibDir, nil
 	}
@@ -89,7 +93,7 @@ func filePathForStdLibPkg(pkgPath string) string {
 }
 
 func filePathFor3rdPartyMod(dir, pkgPath string) (string, error) {
-	f, err := os.Open(filepath.Join(dir, "go.mod"))
+	f, err := os.Open(filepath.Join(filepath.Clean(dir), "go.mod"))
 	if err != nil {
 		return "", fmt.Errorf("could not open go.mod: %w", err)
 	}
@@ -163,4 +167,9 @@ func goEnvVar(name string) string {
 		panic(err)
 	}
 	return strings.TrimSpace(string(out))
+}
+
+func isDir(absPath string) bool {
+	fi, err := os.Stat(absPath)
+	return err == nil && fi.IsDir()
 }

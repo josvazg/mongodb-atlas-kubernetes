@@ -18,9 +18,33 @@ func TestModPathTest(t *testing.T) {
 }
 
 func TestPkgPathTest(t *testing.T) {
-	pkgPath, err := source.PkgPathFor("mod_test.go")
-	require.NoError(t, err)
-	assert.Equal(t, "github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen/source", pkgPath)
+	for _, tc := range []struct {
+		title    string
+		filePath string
+		want     string
+	}{
+		{
+			title:    "local file points to current package",
+			filePath: "mod_test.go",
+			want:     "github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen/source",
+		},
+		{
+			title:    "relative dir points to expected relative local package",
+			filePath: "../sample",
+			want:     "github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen/sample",
+		},
+		{
+			title:    "relative file points to expected relative local package",
+			filePath: "../sample/def.go",
+			want:     "github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen/sample",
+		},
+	} {
+		t.Run(tc.title, func(t *testing.T) {
+			pkgPath, err := source.PkgPath(tc.filePath)
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, pkgPath)
+		})
+	}
 }
 
 func TestFilePathFor(t *testing.T) {
@@ -46,7 +70,7 @@ func TestFilePathFor(t *testing.T) {
 		},
 	} {
 		t.Run(tc.title, func(t *testing.T) {
-			dir, err := source.FilePathFor(tc.packageName)
+			dir, err := source.FilePath(tc.packageName)
 			require.NoError(t, err)
 			assert.Equal(t, tc.want, dir)
 		})

@@ -2,8 +2,6 @@ package akogen
 
 import (
 	"fmt"
-	"path/filepath"
-	"strings"
 	"unicode"
 )
 
@@ -46,13 +44,13 @@ func fullName(base, name string) string {
 	return fmt.Sprintf("%s.%s", base, name)
 }
 
-func removeBase(s, pkgPath string) string {
-	if len(s) == 0 {
-		return ""
-	}
-	base := filepath.Base(pkgPath)
-	if strings.HasPrefix(s, base) && len(s) > len(base) {
-		return firstToLower(strings.Replace(s, base, "", 1))
-	}
-	return s
-}
+// func removeBase(s, pkgPath string) string {
+// 	if len(s) == 0 {
+// 		return ""
+// 	}
+// 	base := filepath.Base(pkgPath)
+// 	if strings.HasPrefix(s, base) && len(s) > len(base) {
+// 		return firstToLower(strings.Replace(s, base, "", 1))
+// 	}
+// 	return s
+// }

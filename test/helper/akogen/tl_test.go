@@ -233,58 +233,58 @@ func fullSampleFromReflect(packageName string) *akogen.TranslationLayer {
 	}, defaults)
 }
 
-func fullASTSample() *akogen.TranslationLayer {
-	return &akogen.TranslationLayer{
-		PackageName: "sample",
-		WrappedType: &akogen.WrappedType{
-			Translation: akogen.Translation{
-				Lib: metadata.Import{
-					Alias: "lib",
-					Path:  "github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen/lib",
-				},
-				ExternalName: "Atlas",
-				External: metadata.NewStruct(
-					metadata.NewNamedType("res", "*github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen/lib.Resource"),
-					metadata.NewStructField(
-						"ComplexSubtype",
-						metadata.NewNamedType("libCs", "github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen/lib.ComplexSubtype"),
-						metadata.NewSimpleField("Name", "string"),
-						metadata.NewSimpleField("Subtype", "string"),
-					),
-					metadata.NewSimpleField("Enabled", "*bool"),
-					metadata.NewSimpleField("Id", "string"),
-					metadata.NewStructField(
-						"OptionalRef",
-						metadata.NewNamedType("libOr", "*github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen/lib.OptionalRef"),
-						metadata.NewSimpleField("Ref", "string"),
-					),
-					metadata.NewSimpleField("SelectedOption", "*string"),
-					metadata.NewSimpleField("Status", "*string"),
-				),
-				ExternalAPI: metadata.NewNamedType("api", "github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen/lib.API"),
-				Internal: metadata.NewStruct(
-					metadata.NewNamedType("res", "*Resource"),
-					metadata.NewStructField(
-						"ComplexSubtype",
-						metadata.NewNamedType("ComplexSubtype", "ComplexSubtype"),
-						metadata.NewSimpleField("Name", "string"),
-						metadata.NewSimpleField("Subtype", "Subtype").WithPrimitive("string"),
-					),
-					metadata.NewSimpleField("Enabled", "bool"),
-					metadata.NewSimpleField("ID", "string"),
-					metadata.NewStructField(
-						"OptionalRef",
-						metadata.NewNamedType("OptionalRef", "*OptionalRef"),
-						metadata.NewSimpleField("Ref", "string"),
-					),
-					metadata.NewSimpleField("SelectedOption", "OptionType").WithPrimitive("string"),
-					metadata.NewSimpleField("Status", "string"),
-				),
-				Wrapper: metadata.NewNamedType("w", "Wrapper"),
-			},
-		},
-	}
-}
+// func fullASTSample() *akogen.TranslationLayer {
+// 	return &akogen.TranslationLayer{
+// 		PackageName: "sample",
+// 		WrappedType: &akogen.WrappedType{
+// 			Translation: akogen.Translation{
+// 				Lib: metadata.Import{
+// 					Alias: "lib",
+// 					Path:  "github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen/lib",
+// 				},
+// 				ExternalName: "Atlas",
+// 				External: metadata.NewStruct(
+// 					metadata.NewNamedType("res", "*github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen/lib.Resource"),
+// 					metadata.NewStructField(
+// 						"ComplexSubtype",
+// 						metadata.NewNamedType("libCs", "github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen/lib.ComplexSubtype"),
+// 						metadata.NewSimpleField("Name", "string"),
+// 						metadata.NewSimpleField("Subtype", "string"),
+// 					),
+// 					metadata.NewSimpleField("Enabled", "*bool"),
+// 					metadata.NewSimpleField("Id", "string"),
+// 					metadata.NewStructField(
+// 						"OptionalRef",
+// 						metadata.NewNamedType("libOr", "*github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen/lib.OptionalRef"),
+// 						metadata.NewSimpleField("Ref", "string"),
+// 					),
+// 					metadata.NewSimpleField("SelectedOption", "*string"),
+// 					metadata.NewSimpleField("Status", "*string"),
+// 				),
+// 				ExternalAPI: metadata.NewNamedType("api", "github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen/lib.API"),
+// 				Internal: metadata.NewStruct(
+// 					metadata.NewNamedType("res", "*Resource"),
+// 					metadata.NewStructField(
+// 						"ComplexSubtype",
+// 						metadata.NewNamedType("ComplexSubtype", "ComplexSubtype"),
+// 						metadata.NewSimpleField("Name", "string"),
+// 						metadata.NewSimpleField("Subtype", "Subtype").WithPrimitive("string"),
+// 					),
+// 					metadata.NewSimpleField("Enabled", "bool"),
+// 					metadata.NewSimpleField("ID", "string"),
+// 					metadata.NewStructField(
+// 						"OptionalRef",
+// 						metadata.NewNamedType("OptionalRef", "*OptionalRef"),
+// 						metadata.NewSimpleField("Ref", "string"),
+// 					),
+// 					metadata.NewSimpleField("SelectedOption", "OptionType").WithPrimitive("string"),
+// 					metadata.NewSimpleField("Status", "string"),
+// 				),
+// 				Wrapper: metadata.NewNamedType("w", "Wrapper"),
+// 			},
+// 		},
+// 	}
+// }
 
 // broken
 // func TestNewTranslationLayerAST(t *testing.T) {
@@ -378,7 +378,6 @@ func TestLoadPackages(t *testing.T) {
 		log.Printf("Pkg type infos %v", pkg.TypesInfo)
 		log.Printf("Pkg complete %v", pkg.Types.Complete())
 	}
-
 }
 
 func randomString(t *testing.T, prefix string) string {

@@ -3,14 +3,15 @@ package source_test
 import (
 	"testing"
 
-	"github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen/metadata"
-	"github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen/source"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen/metadata"
+	"github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen/source"
 )
 
 func TestFindAnnotatedType(t *testing.T) {
-	sg, err := source.New("../sample/def.go")
+	sg, err := source.NewFromFile("../sample/def.go")
 	require.NoError(t, err)
 	ts := sg.FindAnnotatedType("+akogen:InternalType")
 	require.NotNil(t, ts)
@@ -18,9 +19,9 @@ func TestFindAnnotatedType(t *testing.T) {
 }
 
 func TestDescribeType(t *testing.T) {
-	sg, err := source.New("../sample/def.go")
+	sg, err := source.NewFromFile("../sample/def.go")
 	require.NoError(t, err)
-	expected := metadata.NewStruct(
+	want := metadata.NewStruct(
 		metadata.NewNamedType("Resource", "Resource"),
 		metadata.NewStructField(
 			"ComplexSubtype",
@@ -40,5 +41,40 @@ func TestDescribeType(t *testing.T) {
 	)
 	dt, err := sg.DescribeType("Resource")
 	require.NoError(t, err)
-	assert.Equal(t, expected, dt)
+	assert.Equal(t, want, dt)
+}
+
+func TestDescribeInterface(t *testing.T) {
+	sg, err := source.NewFromPackage("github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen/lib")
+	require.NoError(t, err)
+	want := &metadata.Interface{
+		Name: "API",
+		Operations: []metadata.FunctionSignature{
+			{
+				Name: "Create",
+				Args: []metadata.NamedType{
+					metadata.NewNamedType("ctx", "context.Context"),
+					metadata.NewNamedType("apiRes", "*Resource"),
+				},
+				Returns: []metadata.NamedType{
+					metadata.NewNamedType("", "*Resource"),
+					metadata.NewNamedType("", "error"),
+				},
+			},
+			{
+				Name: "Get",
+				Args: []metadata.NamedType{
+					metadata.NewNamedType("ctx", "context.Context"),
+					metadata.NewNamedType("id", "string"),
+				},
+				Returns: []metadata.NamedType{
+					metadata.NewNamedType("", "*Resource"),
+					metadata.NewNamedType("", "error"),
+				},
+			},
+		},
+	}
+	di, err := sg.DescribeInterface("API")
+	require.NoError(t, err)
+	assert.Equal(t, want, di)
 }

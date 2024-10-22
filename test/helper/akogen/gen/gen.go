@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/dave/jennifer/jen"
+
 	"github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen/metadata"
 )
 

@@ -39,7 +39,7 @@ func GetFQPath(filePath string) (string, error) {
 }
 
 func readFirstLine(filename string) (string, error) {
-	file, err := os.Open(filename)
+	file, err := os.Open(filepath.Clean(filename))
 	if err != nil {
 		return "", fmt.Errorf("failed to open file: %w", err)
 	}

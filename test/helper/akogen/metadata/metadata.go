@@ -22,6 +22,11 @@ type MethodSignature struct {
 	Receiver NamedType
 }
 
+type Interface struct {
+	Name       string
+	Operations []FunctionSignature
+}
+
 func removeBase(s, pkgPath string) string {
 	if len(s) == 0 {
 		return ""

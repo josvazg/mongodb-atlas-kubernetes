@@ -6,7 +6,6 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -198,23 +197,19 @@ func (tlp *translatorLayerParser) visit(node ast.Node) bool {
 		return false
 	}
 
-	switch node.(type) {
+	switch obj := node.(type) {
 	case *ast.Comment:
-		c := node.(*ast.Comment)
-		err := tlp.parseComment(c)
+		err := tlp.parseComment(obj)
 		return tlp.visitResult(err)
 	case *ast.TypeSpec:
-		ts := (node).(*ast.TypeSpec)
-		err := tlp.parseType(ts)
-		return tlp.visitResult(err)
+		tlp.parseType(obj)
+		return true
 	case *ast.StructType:
-		st := (node).(*ast.StructType)
-		err := tlp.parseStructType(st)
+		err := tlp.parseStructType(obj)
 		return tlp.visitResult(err)
 	case *ast.Ident:
-		st := (node).(*ast.Ident)
-		err := tlp.parseIdent(st)
-		return tlp.visitResult(err)
+		tlp.parseIdent(obj)
+		return true
 	default:
 		return true
 	}
@@ -228,7 +223,7 @@ func (tlp *translatorLayerParser) visitResult(err error) bool {
 	return true
 }
 
-func (tlp *translatorLayerParser) parseType(ts *ast.TypeSpec) error {
+func (tlp *translatorLayerParser) parseType(ts *ast.TypeSpec) {
 	typeName := ts.Name.Name
 	if tlp.internalAlias != "" && tlp.wp.Internal == nil {
 		if tlp.internalPointer {
@@ -239,7 +234,6 @@ func (tlp *translatorLayerParser) parseType(ts *ast.TypeSpec) error {
 		tlp.parsedTypes[metadata.Type(typeName)] = metadata.NewSimpleDataType(metadata.UnknownName, typeName)
 	}
 	tlp.currentType = metadata.Type(typeName)
-	return nil
 }
 
 func (tlp *translatorLayerParser) parseStructType(st *ast.StructType) error {
@@ -257,7 +251,7 @@ func (tlp *translatorLayerParser) parseStructType(st *ast.StructType) error {
 		if tlp.wp.Internal != nil && tlp.currentType == tlp.wp.Internal.Type {
 			dataType = tlp.wp.Internal
 		} else {
-			dataType = tlp.parsedTypes[metadata.Type(tlp.currentType)]
+			dataType = tlp.parsedTypes[tlp.currentType]
 		}
 		dataType.Kind = metadata.Struct
 		dataType.Fields = append(dataType.Fields, simpleField)
@@ -277,18 +271,17 @@ func parseTypeExpr(te ast.Expr) string {
 	}
 }
 
-func (tlp *translatorLayerParser) parseIdent(id *ast.Ident) error {
+func (tlp *translatorLayerParser) parseIdent(id *ast.Ident) {
 	if id == nil || tlp.currentType == "" || id.Name == string(tlp.currentType) {
-		return nil
+		return
 	}
-	dt := tlp.parsedTypes[metadata.Type(tlp.currentType)]
+	dt := tlp.parsedTypes[tlp.currentType]
 	if isPrimitiveTypeName(id.Name) {
-		dt = dt.WithPrimitive(metadata.Type(id.Name))
+		dt.WithPrimitive(metadata.Type(id.Name))
 	}
-	return nil
 }
 
-func expandComplexFields(dt *metadata.DataType, types map[metadata.Type]*metadata.DataType) error {
+func expandComplexFields(dt *metadata.DataType, types map[metadata.Type]*metadata.DataType) {
 	for i, field := range dt.Fields {
 		if isPrimitiveTypeName(string(field.Type)) {
 			continue
@@ -304,7 +297,6 @@ func expandComplexFields(dt *metadata.DataType, types map[metadata.Type]*metadat
 			}
 		}
 	}
-	return nil
 }
 
 func (tlp *translatorLayerParser) setExternal() error {
@@ -358,13 +350,13 @@ func parseAnnotationValue(s string) (string, error) {
 	return parts[1], nil
 }
 
-func parseAnnotationKey(s string) (string, error) {
-	parts := strings.SplitN(s, ":", 2)
-	if len(parts) != 2 {
-		return "", fmt.Errorf("failed to extract annotation key from %s", s)
-	}
-	return parts[0], nil
-}
+// func parseAnnotationKey(s string) (string, error) {
+// 	parts := strings.SplitN(s, ":", 2)
+// 	if len(parts) != 2 {
+// 		return "", fmt.Errorf("failed to extract annotation key from %s", s)
+// 	}
+// 	return parts[0], nil
+// }
 
 func parseCSVMap(value string) (map[string]string, error) {
 	values := map[string]string{}
@@ -428,11 +420,11 @@ func isTrue(s string) bool {
 	return strings.TrimSpace(strings.ToLower(s)) == "true"
 }
 
-func getPackageDir(packageName string) (string, error) {
-	cmd := exec.Command("go", "list", "-mod=mod", "-f", "{{.Dir}}", packageName)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("failed to query go list package %q: %w", packageName, err)
-	}
-	return strings.TrimSpace(string(out)), nil
-}
+// func getPackageDir(packageName string) (string, error) {
+// 	cmd := exec.Command("go", "list", "-mod=mod", "-f", "{{.Dir}}", packageName)
+// 	out, err := cmd.CombinedOutput()
+// 	if err != nil {
+// 		return "", fmt.Errorf("failed to query go list package %q: %w", packageName, err)
+// 	}
+// 	return strings.TrimSpace(string(out)), nil
+// }

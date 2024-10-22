@@ -3,9 +3,10 @@ package source_test
 import (
 	"testing"
 
-	"github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen/source"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/mongodb/mongodb-atlas-kubernetes/v2/test/helper/akogen/source"
 )
 
 func TestGetAnnotations(t *testing.T) {
@@ -23,7 +24,7 @@ func TestGetAnnotations(t *testing.T) {
 		{Raw: `// +akogen:InternalType:var=res,pointer=true`, Name: "InternalType", Type: source.ArgsValues,
 			Args: map[string]string{"var": "res", "pointer": "true"}},
 	}
-	sg, err := source.New("../sample/def.go")
+	sg, err := source.NewFromFile("../sample/def.go")
 	require.NoError(t, err)
 	annotations, err := sg.GenAnnotationsFor("akogen")
 	require.NoError(t, err)

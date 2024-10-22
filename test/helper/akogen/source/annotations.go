@@ -2,6 +2,7 @@ package source
 
 import (
 	"fmt"
+	"go/ast"
 	"strings"
 )
 
@@ -33,7 +34,20 @@ func (sg *SourceGen) GenAnnotationsFor(generatorName string) ([]GenAnnotation, e
 	}
 
 	annotations := []GenAnnotation{}
-	for _, cg := range sg.f.Comments {
+	for _, files := range sg.pkgs {
+		for _, f := range files {
+			var err error
+			annotations, err = genAnnotationsFor(annotations, pattern, f)
+			if err != nil {
+				return nil, fmt.Errorf("failed to extract annotations on file %s: %w", f.Name, err)
+			}
+		}
+	}
+	return annotations, nil
+}
+
+func genAnnotationsFor(annotations []GenAnnotation, pattern string, f *ast.File) ([]GenAnnotation, error) {
+	for _, cg := range f.Comments {
 		for _, c := range cg.List {
 			if !strings.Contains(c.Text, pattern) {
 				continue
