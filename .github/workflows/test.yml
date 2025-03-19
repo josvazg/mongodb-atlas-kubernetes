@@ -24,11 +24,13 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  trace:
-    name: Trace
+  check:
+    name: Check
     runs-on: ubuntu-latest
+    outputs:
+      run-tests: ${{ steps.check.outputs.run-tests }}
     steps:
-    - name: Show
+    - name: check
       env:
         SAFE_TO_TEST_LABEL: ${{ contains(github.event.pull_request.labels.*.name, 'safe-to-test') }}
         SAFE_TO_TEST_LABEL_TARGET: ${{ contains(github.event.pull_request_target.labels.*.name, 'safe-to-test') }}
@@ -41,22 +43,19 @@ jobs:
         echo EVENT="${EVENT}"
         echo ACTION="${ACTION}"
         echo ALLOWED="${ALLOWED}"
+        echo "run-tests=${ALLOWED}" >> "$GITHUB_OUTPUT"
   
   run-tests:
     name: Run Tests
     runs-on: ubuntu-latest
     needs:
-      - trace
+      - check
+    # Contributions do NOT run any testing by default, a label is needed to allow testing
+    # Only accept either code owner's PRs from the same repo 
+    # or pull_request_target events with the safe-to-test allow flag
+    if: ${{ needs.check-run-tests }}
     steps:
     - name: allowed message
-      # Contributions do NOT run any testing by default, a label is needed to allow testing
-      # Only accept either code owner's PRs from the same repo 
-      # or pull_request_target events with the safe-to-test allow flag
-      if: |
-        (!contains(github.event.pull_request.labels.*.name, 'safe-to-test') &&
-        github.event_name == 'pull_request') || 
-        (contains(github.event.pull_request_target.labels.*.name, 'safe-to-test') &&
-        github.event_name == 'pull_request_target')
       run: echo "Allowed to run tests"
 
   lint:
