@@ -8,14 +8,14 @@ on:
       - 'main'
     paths-ignore:
       - 'docs/**'
+  pull_request_target:
+    types: [labeled]
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review, converted_to_draft, labeled, unlabeled]
     branches:
       - '**'
     paths-ignore:
       - 'docs/**'
-  pull_request_target:
-    types: [labeled]
   merge_group:
   workflow_dispatch:
 
