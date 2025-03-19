@@ -35,7 +35,6 @@ import (
 	"github.com/mongodb/mongodb-atlas-kubernetes/v2/internal/pointer"
 )
 
-
 // some dummy change
 const (
 	DefaultAtlasDomain           = "https://cloud.mongodb.com/"
