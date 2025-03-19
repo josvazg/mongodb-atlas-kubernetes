@@ -25,7 +25,10 @@ jobs:
         SAFE_TO_TEST_LABEL_TARGET: ${{ contains(github.event.pull_request_target.labels.*.name, 'safe-to-test') }}
         EVENT: ${{ github.event_name }}
         ACTION: ${{ github.event.action }}
-        ALLOWED: ${{ (!contains(github.event.pull_request.labels.*.name, 'safe-to-test') && github.event_name == 'pull_request') ||   (contains(github.event.pull_request_target.labels.*.name, 'safe-to-test') && github.event_name == 'pull_request_target')}}
+        # Contributions do NOT run any testing by default, a label is needed to allow testing
+        # Only accept either code owner's PRs from the same repo 
+        # or pull_request_target events with the safe-to-test allow flag
+        ALLOWED: ${{ (!contains(github.event.pull_request.labels.*.name, 'safe-to-test') && github.event_name == 'pull_request') || (contains(github.event.pull_request_target.labels.*.name, 'safe-to-test') && github.event_name == 'pull_request_target')}}
       run: |
         echo SAFE_TO_TEST_LABEL="${SAFE_TO_TEST_LABEL}"
         echo SAFE_TO_TEST_LABEL_TARGET="${SAFE_TO_TEST_LABEL_TARGET}"
@@ -39,9 +42,6 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - check
-    # Contributions do NOT run any testing by default, a label is needed to allow testing
-    # Only accept either code owner's PRs from the same repo 
-    # or pull_request_target events with the safe-to-test allow flag
     if: ${{ needs.check-run-tests }}
     steps:
     - name: allowed message
