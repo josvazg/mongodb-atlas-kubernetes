@@ -8,56 +8,14 @@ on:
       - 'main'
     paths-ignore:
       - 'docs/**'
-  pull_request_target:
-    types: [labeled]
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review, converted_to_draft, labeled, unlabeled]
-    branches:
-      - '**'
-    paths-ignore:
-      - 'docs/**'
   merge_group:
   workflow_dispatch:
 
 concurrency:
-  group: test-${{ github.head_ref || github.ref_name }}-${{ github.event.name }}
+  group: test-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
-  check:
-    name: Check
-    runs-on: ubuntu-latest
-    outputs:
-      run-tests: ${{ steps.check.outputs.run-tests }}
-    steps:
-    - name: check
-      env:
-        SAFE_TO_TEST_LABEL: ${{ contains(github.event.pull_request.labels.*.name, 'safe-to-test') }}
-        SAFE_TO_TEST_LABEL_TARGET: ${{ contains(github.event.pull_request_target.labels.*.name, 'safe-to-test') }}
-        EVENT: ${{ github.event_name }}
-        ACTION: ${{ github.event.action }}
-        ALLOWED: ${{ (!contains(github.event.pull_request.labels.*.name, 'safe-to-test') && github.event_name == 'pull_request') ||   (contains(github.event.pull_request_target.labels.*.name, 'safe-to-test') && github.event_name == 'pull_request_target')}}
-      run: |
-        echo SAFE_TO_TEST_LABEL="${SAFE_TO_TEST_LABEL}"
-        echo SAFE_TO_TEST_LABEL_TARGET="${SAFE_TO_TEST_LABEL_TARGET}"
-        echo EVENT="${EVENT}"
-        echo ACTION="${ACTION}"
-        echo ALLOWED="${ALLOWED}"
-        echo "run-tests=${ALLOWED}" >> "$GITHUB_OUTPUT"
-  
-  run-tests:
-    name: Run Tests
-    runs-on: ubuntu-latest
-    needs:
-      - check
-    # Contributions do NOT run any testing by default, a label is needed to allow testing
-    # Only accept either code owner's PRs from the same repo 
-    # or pull_request_target events with the safe-to-test allow flag
-    if: ${{ needs.check-run-tests }}
-    steps:
-    - name: allowed message
-      run: echo "Allowed to run tests"
-
   lint:
     needs:
       - run-tests
