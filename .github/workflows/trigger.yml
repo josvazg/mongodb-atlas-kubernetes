@@ -15,18 +15,10 @@ on:
 jobs:
   run-tests:
     name: Run Tests
-    runs-on: ubuntu-latest
     # Contributions do NOT run any testing by default, a label is needed to allow testing
     # Only accept either code owner's PRs from the same repo
     # or pull_request_target events with the safe-to-test allow flag
     if: |
       (!contains(github.event.pull_request.labels.*.name, 'safe-to-test') && github.event_name == 'pull_request') || 
       (contains(github.event.pull_request_target.labels.*.name, 'safe-to-test') && github.event_name == 'pull_request_target')
-    steps:
-    - name: allowed message
-      run: echo "Allowed to run tests"
-
-  tests:
-    needs:
-      - run-tests
     uses: ./.github/workflows/test.yml
