@@ -24,8 +24,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  run-tests:
-    name: Run Tests
+  trace:
+    name: Trace
     runs-on: ubuntu-latest
     steps:
     - name: Show
@@ -41,6 +41,13 @@ jobs:
         echo EVENT="${EVENT}"
         echo ACTION="${ACTION}"
         echo ALLOWED="${ALLOWED}"
+  
+  run-tests:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    needs:
+      - trace
+    steps:
     - name: allowed message
       # Contributions do NOT run any testing by default, a label is needed to allow testing
       # Only accept either code owner's PRs from the same repo 
