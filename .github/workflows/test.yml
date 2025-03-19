@@ -20,7 +20,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: test-${{ github.head_ref || github.ref_name }}
+  group: test-${{ github.head_ref || github.ref_name }}-${{ github.event.name }}
   cancel-in-progress: true
 
 jobs:
