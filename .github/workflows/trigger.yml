@@ -50,4 +50,4 @@ jobs:
   tests:
     needs:
       - run-tests
-    uses: ./.github/workflows/test.yaml
+    uses: ./.github/workflows/test.yml
