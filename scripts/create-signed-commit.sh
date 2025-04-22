@@ -48,10 +48,13 @@ for FILE_PATH in $MODIFIED_FILES; do
   ENCODED_CONTENT=$(base64 < "${FILE_PATH}")  
 
   # Create blob  
-  BLOB_SHA=$(curl -s -X POST -H "Authorization: token $github_token" \
+  BLOB_JSON=$(curl -s -X POST -H "Authorization: token $github_token" \
     -H "Accept: application/vnd.github.v3+json" \
     -d "{\"content\": \"$ENCODED_CONTENT\", \"encoding\": \"base64\"}" \
-    "https://api.github.com/repos/$repo_owner/$repo_name/git/blobs" | jq -r '.sha')  
+    "https://api.github.com/repos/$repo_owner/$repo_name/git/blobs")
+  echo "BLOB=${BLOB_JSON}"
+  echo "BLOB indented=$(echo "${BLOB_JSON}" | jq)"
+  BLOB_SHA=$(echo "${BLOB_JSON}" | jq -r '.sha')
 
   # Append file info to tree JSON  
   NEW_TREE_ARRAY="${NEW_TREE_ARRAY}{\"path\": \"$FILE_PATH\", \"mode\": \"100644\", \"type\": \"blob\", \"sha\": \"$BLOB_SHA\"},"  
