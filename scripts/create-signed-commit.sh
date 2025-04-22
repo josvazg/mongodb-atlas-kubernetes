@@ -45,15 +45,13 @@ echo "Modified files: $MODIFIED_FILES"
 NEW_TREE_ARRAY="["  
 for FILE_PATH in $MODIFIED_FILES; do  
   # Read file content encoded to base64  
-  ENCODED_CONTENT=$(base64 < "${FILE_PATH}")  
+  ENCODED_CONTENT=$(base64 -w0 < "${FILE_PATH}")  
 
   # Create blob  
   BLOB_JSON=$(curl -s -X POST -H "Authorization: token $github_token" \
     -H "Accept: application/vnd.github.v3+json" \
     -d "{\"content\": \"$ENCODED_CONTENT\", \"encoding\": \"base64\"}" \
     "https://api.github.com/repos/$repo_owner/$repo_name/git/blobs")
-  echo "BLOB=${BLOB_JSON}"
-  echo "BLOB indented=$(echo "${BLOB_JSON}" | jq)"
   BLOB_SHA=$(echo "${BLOB_JSON}" | jq -r '.sha')
 
   # Append file info to tree JSON  
