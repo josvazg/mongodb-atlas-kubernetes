@@ -47,6 +47,7 @@ jobs:
       - name: Commit as needed
         env:
           GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
+          REPO_OWNER: ${{ github.repository_owner }}
           COMMIT_MESSAGE: 'Fix licenses after dependabot changes\n\n[dependabot skip]'
         run: |
           if [[ $(git diff --stat) != '' ]]; then
