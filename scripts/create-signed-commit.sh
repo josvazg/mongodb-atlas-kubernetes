@@ -17,7 +17,7 @@
 # author and committer arguments. See:
 # https://github.com/peter-evans/create-pull-request/issues/1241#issuecomment-1232477512
 
-set -euo pipefail
+set -euxo pipefail
   
 # Configuration defaults
 github_token=${GITHUB_TOKEN:?}
@@ -68,12 +68,10 @@ NEW_TREE_SHA=$(curl -s -X POST -H "Authorization: token $github_token" \
 echo "New tree SHA: $NEW_TREE_SHA"  
   
 # Create a new commit
-set -x
 NEW_COMMIT_SHA=$(curl -s -X POST -H "Authorization: token $github_token" \
   -H "Accept: application/vnd.github.v3+json" \
   -d "{\"message\": \"$commit_message\", \"tree\": \"$NEW_TREE_SHA\", \"parents\": [\"$LATEST_COMMIT_SHA\"]}" \
-  "https://api.github.com/repos/$repo_owner/$repo_name/git/commits" | jq -r '.sha')  
-set +x
+  "https://api.github.com/repos/$repo_owner/$repo_name/git/commits" | jq -r '.sha')
 echo "New commit SHA: $NEW_COMMIT_SHA"  
   
 # Update the reference of the branch to point to the new commit  
